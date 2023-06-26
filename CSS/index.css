@@ -1,6 +1,31 @@
-     .container {
+        .container {
+            position: relative;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 90vh;
+        }
+
+        .links {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .left-links {
+            align-items: flex-end;
+            margin-right: 20px;
+        }
+
+        .right-links {
+            align-items: flex-start;
+            margin-left: 20px;
+        }
+
+        .link {
+            margin: 70px 0;
+            padding: 10px;
+            text-decoration: none;
+            color: #000;
+            font-size: 22px;
+            font-family: "Arial", sans-serif;
         }
