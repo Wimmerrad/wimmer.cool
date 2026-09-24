@@ -182,6 +182,8 @@ html:has(.ctl-full), body:has(.ctl-full) { height: 100%; overflow: hidden; overs
 .ctl-st-title { font-weight: 800; font-style: italic; fill: var(--ctl-ink); }
 .ctl-st-date { font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
 .ctl-date-bg { fill: var(--ctl-bg); }
+/* names, dates and captions get a thin outline in the background colour, so links passing behind them don't cut through the letters */
+.ctl-st-title, .ctl-cv-date, .ctl-st-cap { paint-order: stroke; stroke: var(--ctl-bg); stroke-width: 5px; stroke-linejoin: round; }
 /* "Covers" look: framed pictures instead of rings */
 .ctl-cover-bg { fill: var(--ctl-surface); }
 .ctl-cover-frame { fill: none; stroke-width: 4; transition: stroke-width 0.12s; }

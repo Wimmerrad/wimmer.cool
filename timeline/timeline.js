@@ -348,8 +348,12 @@
     var endB = function (toward) { return b.p._cover ? offTowards(boxEdge([b.x, b.y], toward, coverBoxOf(b, G)), toward, 4) : offTowards([b.x, b.y], toward, R_ST + 5); };
     if (!straight) {
       var dy = b.y - a.y, dx = b.x - a.x, vertical = Math.abs(dy) > Math.abs(dx) * 0.35;
-      var c1 = vertical ? [a.x, a.y + dy * 0.5] : [a.x + dx * 0.5, a.y], c2 = vertical ? [b.x, b.y - dy * 0.5] : [b.x - dx * 0.5, b.y];
-      var A = endA(c1), B = endB(c2);
+      // find where each end leaves its point (straight down/up or sideways), then shape the curve between those ends,
+      // so it never starts inside a cover's text or loops back over it
+      var A = endA(vertical ? [a.x, a.y + (dy || 1)] : [a.x + (dx || 1), a.y]);
+      var B = endB(vertical ? [b.x, b.y - (dy || 1)] : [b.x - (dx || 1), b.y]);
+      var ey = B[1] - A[1], ex = B[0] - A[0];
+      var c1 = vertical ? [A[0], A[1] + ey * 0.5] : [A[0] + ex * 0.5, A[1]], c2 = vertical ? [B[0], B[1] - ey * 0.5] : [B[0] - ex * 0.5, B[1]];
       return {
         straight: false, A: A, B: B, tail: c2,
         d: 'M' + r1(A[0]) + ',' + r1(A[1]) + 'C' + r1(c1[0]) + ',' + r1(c1[1]) + ' ' + r1(c2[0]) + ',' + r1(c2[1]) + ' ' + r1(B[0]) + ',' + r1(B[1]),
@@ -424,7 +428,9 @@
     var dx = q[0] - c[0], dy = q[1] - c[1];
     var tx = dx > 0 ? (b.r - c[0]) / dx : dx < 0 ? (b.l - c[0]) / dx : Infinity;
     var ty = dy > 0 ? (b.b - c[1]) / dy : dy < 0 ? (b.t - c[1]) / dy : Infinity;
-    var t = Math.min(tx, ty, 1);
+    // always land on the box's edge, even when q is close enough to be inside it
+    var t = Math.min(tx, ty);
+    if (!isFinite(t)) t = 0;
     return [c[0] + dx * t, c[1] + dy * t];
   }
 
