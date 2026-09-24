@@ -103,6 +103,8 @@
   .ed-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--c); align-self: center; }
 
   .ed-card { border: 1px solid var(--line); border-radius: 8px; padding: 10px; margin-bottom: 10px; background: var(--surface); }
+  .ed-card { transition: box-shadow 0.3s, border-color 0.3s; scroll-margin-top: 10px; }
+  .ed-card.is-flash { border-color: var(--hi); box-shadow: 0 0 0 3px var(--hi-soft); }
   .ed-card-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
   .ed-card-row > select { flex: 1 1 130px; min-width: 0; height: 32px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); padding: 0 6px; }
   .ed-card-row > .ed-input { flex: 1 1 120px; }
@@ -341,8 +343,21 @@ window.__startEditor = function () {
       if (S.tab === 'lanes') render();
     },
     // drag a station onto another: connect them
-    onConnect: function (a, b) { addConnection(a, b); }
+    onConnect: function (a, b) { addConnection(a, b); },
+    // click a line (its circle or track): open that line's settings
+    onLineClick: function (lineId) { openLine(lineId); }
   });
+
+  function openLine(lineId) {
+    S.tab = 'lanes';
+    render();
+    var card = null;
+    pane.querySelectorAll('[data-lcard]').forEach(function (c) { if (c.getAttribute('data-lcard') === lineId) card = c; });
+    if (!card) return;
+    card.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    card.classList.add('is-flash');
+    setTimeout(function () { card.classList.remove('is-flash'); }, 1400);
+  }
   var previewT;
   function schedulePreview() { clearTimeout(previewT); previewT = setTimeout(updatePreview, 120); }
   function updatePreview() { clearTimeout(previewT); tl.setData(S.data); }
@@ -584,7 +599,7 @@ window.__startEditor = function () {
       }).map(function (p) {
         return '<option value="' + esc(p.id) + '"' + (l.start === p.id ? ' selected' : '') + '>Below “' + esc(p.title || 'Untitled') + '” (' + esc(laneOf(p.line).label || '') + ')</option>';
       }).join('');
-      h += '<div class="ed-card"><div class="ed-grid" style="grid-template-columns:0.7fr 1.6fr">' +
+      h += '<div class="ed-card" data-lcard="' + id + '"><div class="ed-grid" style="grid-template-columns:0.7fr 1.6fr">' +
         '<label>Label in the circle<input data-lnf="label" data-lid="' + id + '" value="' + esc(l.label || '') + '" maxlength="8" placeholder="e.g. U.C."></label>' +
         '<label>Name<input data-lnf="name" data-lid="' + id + '" value="' + esc(l.name || '') + '" placeholder="e.g. Universal Century"></label></div>' +
         '<div class="ed-field" style="margin-top:6px"><span>Colour</span>' + swatches('data-lid', l.id, l.color) + '</div>' +

@@ -480,6 +480,9 @@
     this.svg.addEventListener('click', function (e) {
       var g = e.target.closest('.ctl-st');
       if (g && !self._dragged) self.select(g.dataset.id === self.selected && self.opts.panel ? null : g.dataset.id, { pan: false });
+      // Editor only: clicking a line's circle or track opens that line's settings
+      var lg = !g && !self._dragged && self.opts.editable && self.opts.onLineClick && e.target.closest('.ctl-term, .ctl-track');
+      if (lg) self.opts.onLineClick(lg.closest('.ctl-lineg').getAttribute('data-line'));
     });
     // Editor only: double-click a line's circle to add a point to that line
     this.svg.addEventListener('dblclick', function (e) {

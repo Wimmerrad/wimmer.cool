@@ -139,6 +139,8 @@ html:has(.ctl-full), body:has(.ctl-full) { height: 100%; overflow: hidden; overs
 
 /* Editor-only dragging */
 .ctl-editable .ctl-term { cursor: move; }
+.ctl-editable .ctl-track { cursor: pointer; }
+.ctl-editable .ctl-track:hover { stroke-width: 10; }
 .ctl-editable .ctl-term:hover circle { stroke: var(--ctl-hi); stroke-width: 3; }
 .ctl-map.is-moving-line, .ctl-map.is-moving-line .ctl-term { cursor: grabbing; }
 .ctl-map.is-moving-line .ctl-link, .ctl-map.is-moving-line .ctl-startlink { opacity: 0.12; }
