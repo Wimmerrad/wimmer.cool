@@ -630,7 +630,7 @@ window.__startEditor = function () {
       '<option value=""' + (!p.look ? ' selected' : '') + '>Same as the timeline (' + dflt + ')</option>' +
       '<option value="ring"' + (p.look === 'ring' ? ' selected' : '') + '>Ring: a small station on the track</option>' +
       '<option value="cover"' + (p.look === 'cover' ? ' selected' : '') + '>Cover: its first picture, shown large</option></select>' +
-      '<small>The timeline’s default is set in Settings.' + (p.look === 'cover' && !(p.images || []).length ? ' Add a picture below. Until then the cover shows the title.' : '') + '</small></label>';
+      '<small>Shortcut: press <b>C</b> to switch between ring and cover. The timeline’s default is set in Settings.' + (p.look === 'cover' && !(p.images || []).length ? ' Add a picture below. Until then the cover shows the title.' : '') + '</small></label>';
     h += '<label class="ed-field"><span>Caption under the station</span><input data-f="caption" value="' + esc(p.caption || '') + '" placeholder="Optional, e.g. “Amuro gets the Gundam”"></label>';
     h += '<label class="ed-field"><span>Short summary</span><textarea rows="2" data-f="summary">' + esc(p.summary || '') + '</textarea></label>';
     h += '<label class="ed-field"><span>Full description</span><textarea rows="6" data-f="description">' + esc(p.description || '') + '</textarea><small>Leave an empty line between paragraphs.</small></label>';
@@ -1608,6 +1608,20 @@ window.__startEditor = function () {
     if (S.tab !== 'points' || !S.editing || !point(S.editing)) return;
     e.preventDefault();
     deletePoint(S.editing);
+  });
+
+  // C key: switch the open point between ring and cover, unless you're typing in a field
+  document.addEventListener('keydown', function (e) {
+    if (e.key.toLowerCase() !== 'c' || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+    var t = e.target;
+    if (t && (t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable || (t.tagName === 'INPUT' && isTextish(t)))) return;
+    var id = S.editing, p = S.tab === 'points' && id && point(id);
+    if (!p) return;
+    e.preventDefault();
+    var next = (p.look || (S.data.settings.display === 'covers' ? 'cover' : 'ring')) === 'cover' ? 'ring' : 'cover';
+    mutate(function (d) { d.points.find(function (x) { return x.id === id; }).look = next; });
+    updatePreview(); render(); tl.select(id, { silent: true });
+    toast('“' + (p.title || 'Untitled') + '” is now a ' + next + '.' + (next === 'cover' && !(p.images || []).length ? ' Add a picture to show on the cover.' : ''));
   });
 
   document.addEventListener('keydown', function (e) {
