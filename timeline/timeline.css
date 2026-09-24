@@ -159,6 +159,14 @@ html:has(.ctl-full), body:has(.ctl-full) { height: 100%; overflow: hidden; overs
 .ctl-map text { font-family: var(--ctl-map-font); }
 .ctl-maptitle { font-weight: 900; font-style: italic; letter-spacing: -0.01em; fill: var(--ctl-title); }
 .ctl-mapsub { font-style: italic; fill: var(--ctl-muted); }
+/* free texts: just words on the map for visitors; clickable and movable in the editor */
+.ctl-text { pointer-events: none; }
+.ctl-text-t { fill: var(--ctl-ink); paint-order: stroke; stroke: var(--ctl-bg); stroke-width: 5px; stroke-linejoin: round; white-space: pre; }
+.ctl:not(.ctl-editable) .ctl-text.is-empty { display: none; }
+.ctl-text.is-empty .ctl-text-t { opacity: 0.5; }
+.ctl-editable .ctl-text, .ctl-editable .ctl-titleg { pointer-events: bounding-box; cursor: pointer; }
+.ctl-editable .ctl-text.is-selected, .ctl-editable .ctl-titleg.is-selected { cursor: move; }
+.ctl-text-sel { fill: none; stroke: var(--ctl-hi); stroke-width: 2; stroke-dasharray: 6 5; pointer-events: none; }
 .ctl-track { fill: none; stroke-width: 7; stroke-linecap: round; stroke-linejoin: round; }
 .ctl-startlink { fill: none; stroke-width: 3; stroke-linecap: round; }
 .ctl-start-hit { fill: none; stroke: transparent; stroke-width: 14; }

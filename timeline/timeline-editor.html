@@ -127,7 +127,7 @@
   .ed-conn-head { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; font-size: 13px; line-height: 1.35; color: var(--ink-2); }
   .ed-conn-head svg { width: 26px; height: 10px; flex: none; overflow: visible; }
   .ed-conn-head b { color: var(--ink); font-weight: 600; }
-  .ed-card.is-flash { border-color: var(--hi); box-shadow: 0 0 0 3px var(--hi-soft); }
+  .ed-card.is-flash, .ed-field.is-flash input { border-color: var(--hi); box-shadow: 0 0 0 3px var(--hi-soft); }
   .ed-card-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
   .ed-card-row > select { flex: 1 1 130px; min-width: 0; height: 32px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); padding: 0 6px; }
   .ed-card-row > .ed-input { flex: 1 1 120px; }
@@ -196,6 +196,7 @@
       <button type="button" role="tab" data-tab="connections">Connections</button>
       <button type="button" role="tab" data-tab="types">Connection kinds</button>
       <button type="button" role="tab" data-tab="lanes">Main points</button>
+      <button type="button" role="tab" data-tab="texts">Texts</button>
       <button type="button" role="tab" data-tab="music">Music</button>
       <button type="button" role="tab" data-tab="settings">Settings</button>
     </nav>
@@ -421,7 +422,25 @@ window.__startEditor = function () {
     // drag a station onto another: connect them
     onConnect: function (a, b) { addConnection(a, b); },
     // click a line (its circle or track): open that line's settings
-    onLineClick: function (lineId) { openLine(lineId); }
+    onLineClick: function (lineId) { openLine(lineId); },
+    // free texts: double-click empty space to add one, click one to open it, drag a selected one to move it
+    onAddText: function (xy) { addText(xy); },
+    onTextClick: function (id) { openCard('texts', 'data-xcard', id); },
+    onMoveText: function (id, xy) {
+      mutate(function (d) { var x = (d.texts || []).find(function (y) { return y.id === id; }); if (x) { x.x = xy.x; x.y = xy.y; } });
+      updatePreview();
+    },
+    // the title: click it to open the Settings, drag it once selected to move it
+    onTitleClick: function () {
+      S.tab = 'settings'; render();
+      var f = pane.querySelector('[data-sf="title"]');
+      if (f) { f.scrollIntoView({ block: 'center' }); f.closest('.ed-field').classList.add('is-flash'); setTimeout(function () { f.closest('.ed-field').classList.remove('is-flash'); }, 1400); }
+    },
+    onMoveTitle: function (xy) {
+      mutate(function (d) { if (xy.x || xy.y) d.settings.titlePos = { x: xy.x, y: xy.y }; else delete d.settings.titlePos; });
+      updatePreview();
+      if (S.tab === 'settings') render();
+    }
   });
 
   function openLine(lineId) { openCard('lanes', 'data-lcard', lineId); }
@@ -519,6 +538,7 @@ window.__startEditor = function () {
       (p.images || []).forEach(function (im) { Object.keys(im).forEach(function (k) { if (im[k] === '') delete im[k]; }); });
     });
     out.connections.forEach(function (c) { if (!c.note) delete c.note; });
+    if (out.texts && !out.texts.length) delete out.texts;
     return out;
   }
   function serialize(d) {
@@ -546,6 +566,7 @@ window.__startEditor = function () {
     else if (S.tab === 'types') pane.innerHTML = typesPane();
     else if (S.tab === 'lanes') pane.innerHTML = lanesPane();
     else if (S.tab === 'music') pane.innerHTML = musicPane();
+    else if (S.tab === 'texts') pane.innerHTML = textsPane();
     else pane.innerHTML = settingsPane();
     pane.scrollTop = scroll;
     if (S.tab === 'points' && !S.editing) renderPointRows();
@@ -900,6 +921,46 @@ window.__startEditor = function () {
     toast(added.length + (added.length === 1 ? ' track added' : ' tracks added') + '. They’re copied into the music folder when you save.');
   }
 
+  // Texts tab: free text placed anywhere on the map
+  function textsPane() {
+    var list = S.data.texts || [];
+    var h = '<div class="ed-head"><h2>Texts <small>' + list.length + '</small></h2><button type="button" class="ed-btn small" data-a="add-text">+ Add text</button></div>' +
+      '<p class="ed-note">Words you can put anywhere on the map, like notes on a hand-made chart. <b>Double-click empty space</b> in the preview to add one there. ' +
+      'Click a text in the preview to select it, then drag it to move it. Press <b>Del</b> to delete the selected text.</p>';
+    if (!list.length) return h + '<p class="ed-note">No texts yet.</p>';
+    list.forEach(function (t) {
+      var id = esc(t.id);
+      h += '<div class="ed-card" data-xcard="' + id + '">' +
+        '<label class="ed-field"><span>Text</span><textarea rows="2" data-xf="text" data-xid="' + id + '" placeholder="Write something">' + esc(t.text || '') + '</textarea><small>Press Enter for a new line.</small></label>' +
+        '<div style="display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap">' +
+          '<label class="ed-field" style="margin:0;width:110px"><span>Size</span><input type="number" min="8" max="160" step="1" data-xf="size" data-xid="' + id + '" value="' + esc(t.size || 22) + '"></label>' +
+          '<label class="ed-check" style="margin:0 0 8px"><input type="checkbox" data-xf="bold" data-xid="' + id + '"' + (t.bold !== false ? ' checked' : '') + '> Bold</label>' +
+          '<label class="ed-check" style="margin:0 0 8px"><input type="checkbox" data-xf="italic" data-xid="' + id + '"' + (t.italic !== false ? ' checked' : '') + '> Italic</label></div>' +
+        '<div class="ed-field" style="margin-top:6px"><span>Colour</span>' + swatches('data-xid', t.id, t.color || '') +
+          (t.color ? '<button type="button" class="ed-btn small" data-a="text-uncolor" data-xid="' + id + '" style="margin-top:6px">Use the normal text colour</button>' : '') + '</div>' +
+        '<div class="ed-card-row" style="justify-content:space-between;margin-top:8px"><button type="button" class="ed-btn small" data-a="text-show" data-xid="' + id + '">Show on the map</button>' +
+          '<button type="button" class="ed-btn small danger" data-a="text-del" data-xid="' + id + '">Delete text</button></div></div>';
+    });
+    return h;
+  }
+  function addText(xy) {
+    var d = S.data, id = uniqueId('text', ids(d.texts || []));
+    xy = xy || tl.viewCenter();
+    mutate(function (dd) { (dd.texts = dd.texts || []).push({ id: id, text: 'New text', x: xy.x, y: xy.y }); });
+    updatePreview();
+    tl.selectText(id);
+    openCard('texts', 'data-xcard', id);
+    var f = pane.querySelector('[data-xf="text"][data-xid="' + id + '"]');
+    if (f) { f.focus(); f.select(); }
+  }
+  function deleteText(id) {
+    mutate(function (dd) { dd.texts = (dd.texts || []).filter(function (t) { return t.id !== id; }); });
+    tl.selectText(null);
+    updatePreview();
+    if (S.tab === 'texts') render();
+    toast('Text deleted. Press Ctrl+Z to bring it back.');
+  }
+
   // Settings tab
   function settingsPane() {
     var s = S.data.settings;
@@ -908,6 +969,8 @@ window.__startEditor = function () {
       '<label class="ed-field"><span>Title</span><input data-sf="title" value="' + esc(s.title || '') + '"></label>' +
       '<label class="ed-field"><span>Subtitle</span><textarea rows="2" data-sf="subtitle">' + esc(s.subtitle || '') + '</textarea></label>' +
       '<label class="ed-check"><input type="checkbox" data-sf="showTitle"' + (s.showTitle !== false ? ' checked' : '') + '> Show the title and subtitle above the timeline</label>' +
+      '<p class="ed-note" style="margin-top:-4px">To move the title, click it in the preview, then drag it.' +
+        (s.titlePos ? ' <button type="button" class="ed-btn small" data-a="title-unmove">Put the title back in its usual place</button>' : '') + '</p>' +
       '<label class="ed-field"><span>Colours</span><select data-sf="theme">' +
         '<option value="night"' + (s.theme !== 'paper' ? ' selected' : '') + '>Night: bright lines on deep blue</option>' +
         '<option value="paper"' + (s.theme === 'paper' ? ' selected' : '') + '>Paper: lines on a light background</option></select></label>' +
@@ -1096,6 +1159,15 @@ window.__startEditor = function () {
         if (f === 'directed') ty.directed = t.checked; else ty[f] = t.value;
       }, 'type:' + tid + ':' + f);
       if (f === 'style' || f === 'directed') render();
+    } else if ((f = t.dataset.xf)) {   // a free text's words, size, bold, italic
+      var xid = t.dataset.xid;
+      mutate(function (d) {
+        var x = (d.texts || []).find(function (y) { return y.id === xid; });
+        if (!x) return;
+        if (f === 'bold' || f === 'italic') { if (t.checked) delete x[f]; else x[f] = false; }
+        else if (f === 'size') { var n = parseFloat(t.value); if (n >= 8 && n <= 160) x.size = n; }
+        else x[f] = t.value;
+      }, 'text:' + xid + ':' + f);
     } else if ((f = t.dataset.mf)) {   // music track title / artist / album
       mutate(function (d) { d.music[+t.dataset.i][f] = t.value; }, 'mus:' + t.dataset.i + f);
     } else if ((f = t.dataset.lnf)) {
@@ -1125,11 +1197,11 @@ window.__startEditor = function () {
   }
 
   function setColor(el, color, key) {
-    var tid = el.dataset.tid, lid = el.dataset.lid;
+    var tid = el.dataset.tid, lid = el.dataset.lid, xid = el.dataset.xid;
     mutate(function (d) {
-      var x = tid ? d.types.find(function (y) { return y.id === tid; }) : d.lines.find(function (y) { return y.id === lid; });
+      var x = tid ? d.types.find(function (y) { return y.id === tid; }) : xid ? (d.texts || []).find(function (y) { return y.id === xid; }) : d.lines.find(function (y) { return y.id === lid; });
       if (x) x.color = color;
-    }, key ? 'color:' + (tid || lid) : null);
+    }, key ? 'color:' + (tid || xid || lid) : null);
     if (!key) render();
   }
 
@@ -1264,6 +1336,17 @@ window.__startEditor = function () {
       updatePreview(); render();
     }
     else if (a === 'color') setColor(b, b.dataset.color);
+    else if (a === 'add-text') addText();
+    else if (a === 'text-del') deleteText(b.dataset.xid);
+    else if (a === 'text-show') tl.selectText(b.dataset.xid);
+    else if (a === 'text-uncolor') {
+      mutate(function (dd) { var x = (dd.texts || []).find(function (y) { return y.id === b.dataset.xid; }); if (x) delete x.color; });
+      updatePreview(); render();
+    }
+    else if (a === 'title-unmove') {
+      mutate(function (dd) { delete dd.settings.titlePos; });
+      updatePreview(); render();
+    }
     else if (a === 'copy-snippet') {
       var text = $('snippet').textContent;
       var fallback = function () {
@@ -1628,6 +1711,8 @@ window.__startEditor = function () {
     if (e.key !== 'Delete' || e.ctrlKey || e.metaKey || e.altKey) return;
     var t = e.target;
     if (t && (t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable || (t.tagName === 'INPUT' && isTextish(t)))) return;
+    var xs = tl.selectedText;
+    if (xs && (S.data.texts || []).some(function (x) { return x.id === xs; })) { e.preventDefault(); deleteText(xs); return; }   // a selected free text
     if (S.tab !== 'points' || !S.editing || !point(S.editing)) return;
     e.preventDefault();
     deletePoint(S.editing);

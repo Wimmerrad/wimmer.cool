@@ -177,6 +177,8 @@
       if (!c || c.from === c.to || !data.byId.has(c.from) || !data.byId.has(c.to)) return;
       data.connections.push(Object.assign({}, c, { id: c.id || 'c' + i, _type: data.typeById.has(c.type) ? c.type : data.types[0].id }));
     });
+    // free text placed anywhere on the map
+    data.texts = (Array.isArray(src.texts) ? src.texts : []).filter(function (t) { return t && t.id && isFinite(t.x) && isFinite(t.y); });
     return data;
   }
 
@@ -211,6 +213,7 @@
   var RING_GEOM = { covers: false, TRACK: TRACK, ABOVE: ABOVE, BELOW: BELOW, MINSP: 140 };
   // stands in for a main point when a free point belongs to none
   var FREE_LINE = { id: '', label: '', name: 'Free points', color: '#c4c9ea', _color: '#c4c9ea' };
+  var TITLE_ID = '\u0000title';   // the map's title, when it's selected in the editor
 
   // Each point picks its own look: "cover", "ring", or (unset) the timeline's default look.
   function isCover(p, s) { return p.look === 'cover' || (p.look !== 'ring' && s.display === 'covers'); }
@@ -275,9 +278,20 @@
       var mains = pts.filter(function (p) { return !p._track; });
       L.lastMainX = mains.length ? pos.get(mains[mains.length - 1].id).x : L.x;
     });
+    // the title can be moved by hand (settings.titlePos: how far from its usual spot); free texts sit where they were placed
+    var tp = s.titlePos && isFinite(s.titlePos.x) && isFinite(s.titlePos.y) ? { x: +s.titlePos.x, y: +s.titlePos.y } : { x: 0, y: 0 };
+    if (titleLines.length) {
+      right = Math.max(right, X0 - 36 + tp.x + 560);
+      y = Math.max(y, top + tp.y + 20);
+    }
+    data.texts.forEach(function (t) {
+      var n = String(t.text || '').split('\n').length, fs = textSize(t);
+      right = Math.max(right, +t.x + Math.min(900, String(t.text || '').length * fs * 0.6));
+      y = Math.max(y, +t.y + n * fs * 1.2 + 20);
+    });
     var width = Math.max(right + 40, 700);
     lines.forEach(function (L) { L.endX = L.line.continues ? width : L.lastMainX; });
-    return { pos: pos, lines: lines, width: width, height: y + 10, top: top, titleLines: titleLines, SP: SP, G: CG };
+    return { pos: pos, lines: lines, width: width, height: y + 10, top: top, titleLines: titleLines, titlePos: tp, SP: SP, G: CG };
   }
 
   function arrowPath(tip, from, size) {
@@ -481,10 +495,11 @@
   function drawMap(data, L, img) {
     var s = data.settings, SP = L.SP, G = L.G, out = [];   // G: cover sizes, for the points shown as covers
     // The area a cover and the text under it take up, around its centre
-    // Title
+    // Title (and subtitle), in one group the editor can drag
     if (L.titleLines.length) {
-      out.push(textLines(L.titleLines, X0 - 36, 30 + L.titleLines.length * 70 - 12, 70, 'class="ctl-maptitle" font-size="68"'));
-      if (s.subtitle) out.push(textLines(wrap(s.subtitle, 90, 2).slice(0, 1), X0 - 34, 30 + L.titleLines.length * 70 + 26, 20, 'class="ctl-mapsub" font-size="16"'));
+      var tp = L.titlePos;
+      out.push('<g class="ctl-titleg">' + textLines(L.titleLines, X0 - 36 + tp.x, 30 + L.titleLines.length * 70 - 12 + tp.y, 70, 'class="ctl-maptitle" font-size="68"') +
+        (s.subtitle ? textLines(wrap(s.subtitle, 90, 2).slice(0, 1), X0 - 34 + tp.x, 30 + L.titleLines.length * 70 + 26 + tp.y, 20, 'class="ctl-mapsub" font-size="16"') : '') + '</g>');
     }
     // Each line's track, circle and stations share one group, so the editor can drag a whole line at once.
     var per = new Map();
@@ -553,8 +568,20 @@
       if (id === '\u0000free') out.push('<g class="ctl-freeg">' + g.st.join('') + '</g>');
       else out.push('<g class="ctl-lineg" data-line="' + esc(id) + '">' + g.tracks.join('') + g.term + g.st.join('') + '</g>');
     });
+    // Free texts, on top of everything
+    data.texts.forEach(function (t) { out.push(drawText(t)); });
     out.push('<path class="ctl-dragline" d=""/>');   // editor: the line that follows the pointer while connecting
     return out.join('');
+  }
+
+  // One free text: its top-left corner at (x, y); each line of the text on its own row.
+  function textSize(t) { return clamp(parseFloat(t.size) || 22, 8, 160); }
+  function drawText(t) {
+    var fs = textSize(t), lh = Math.round(fs * 1.2), lines = String(t.text || '').split('\n'), empty = !String(t.text || '').trim();
+    if (empty) lines = ['Empty text'];   // only shown in the editor
+    var st = (t.bold === false ? 'font-weight:500;' : 'font-weight:800;') + (t.italic === false ? 'font-style:normal;' : 'font-style:italic;') + (t.color ? 'fill:' + hex(t.color) + ';' : '');
+    return '<g class="ctl-text' + (empty ? ' is-empty' : '') + '" data-t="' + esc(t.id) + '">' +
+      textLines(lines, +t.x, +t.y + fs * 0.8 + (lines.length - 1) * lh, lh, 'class="ctl-text-t" font-size="' + fs + '" style="' + st + '"') + '</g>';
   }
 
   // =====================================================================
@@ -655,8 +682,20 @@
     this.svg.addEventListener('click', function (e) {
       var g = e.target.closest('.ctl-st');
       if (self._dragged) return;
-      if (g) { self._selectLine(null); self._selectLink(null); self.select(g.dataset.id === self.selected && self.opts.panel ? null : g.dataset.id, { pan: false }); return; }
+      if (g) { self._selectLine(null); self._selectLink(null); self._selectText(null); self.select(g.dataset.id === self.selected && self.opts.panel ? null : g.dataset.id, { pan: false }); return; }
       var ed = self.opts.editable;
+      // Editor only: clicking a free text or the title selects it (then it can be dragged) and opens its settings
+      var tg = ed && e.target.closest('.ctl-text, .ctl-titleg');
+      if (tg) {
+        var tid = tg.classList.contains('ctl-titleg') ? TITLE_ID : tg.dataset.t;
+        self._selectLine(null); self._selectLink(null);
+        if (self.selected) self.select(null, { silent: true });
+        self._selectText(tid);
+        if (tid === TITLE_ID) { if (self.opts.onTitleClick) self.opts.onTitleClick(); }
+        else if (self.opts.onTextClick) self.opts.onTextClick(tid);
+        return;
+      }
+      self._selectText(null);
       // Editor only: clicking a line's circle or track selects the line (so its circle can be dragged) and opens its settings
       var lg = e.target.closest('.ctl-term, .ctl-track, .ctl-startg');
       if (lg) {
@@ -690,6 +729,13 @@
       if (!self.opts.editable) return;
       var t = e.target.closest('.ctl-term');
       if (t && self.opts.onAddToLine) { e.preventDefault(); self.opts.onAddToLine(t.getAttribute('data-line')); return; }
+      // double-click empty space: add a free text there
+      if (self.opts.onAddText && !e.target.closest('.ctl-st, .ctl-link, .ctl-track, .ctl-startg, .ctl-text, .ctl-titleg, .ctl-bends, .ctl-move')) {
+        var wt = self._toWorld(e);
+        e.preventDefault();
+        self.opts.onAddText({ x: Math.max(0, Math.round(wt[0] / 5) * 5), y: Math.max(0, Math.round(wt[1] / 5) * 5) });
+        return;
+      }
       var endH = e.target.closest('.ctl-end'), LC = endH && self.selectedLink && self._linkParts(self.selectedLink);
       if (LC && self.opts.onMoveEnds) {   // put that end back where it's placed automatically
         var ends = { from: LC.c.fromEnd || null, to: LC.c.toEnd || null };
@@ -942,6 +988,7 @@
     this._selectLine(this.opts.editable ? this.selectedLine : null);
     if (this.selectedLink && !d.connections.some(function (c) { return c.id === self.selectedLink; })) this.selectedLink = null;
     this._selectLink(this.opts.editable ? this.selectedLink : null);
+    this._selectText(this.opts.editable ? this.selectedText : null);
     this._drawMoveHandle();
   };
 
@@ -1024,6 +1071,12 @@
     if (this.opts.editable && this.viewMode === 'map' && !this.pointers.size) {
       if (e.target.closest('.ctl-move') && this.selected) {   // the move handle of a selected free point
         this.edit = { kind: 'move', id: this.selected, pid: e.pointerId, x: e.clientX, y: e.clientY, moved: false };
+        this._dragged = false;
+        return;
+      }
+      var txt = this.selectedText && e.target.closest('.ctl-text, .ctl-titleg');
+      if (txt && (txt.classList.contains('ctl-titleg') ? TITLE_ID : txt.dataset.t) === this.selectedText) {   // dragging the selected text or title
+        this.edit = { kind: 'text', id: this.selectedText, el: txt, pid: e.pointerId, x: e.clientX, y: e.clientY, moved: false };
         this._dragged = false;
         return;
       }
@@ -1354,6 +1407,30 @@
     this.world.appendChild(g);
   };
 
+  // Editor: select a free text (or the title, TITLE_ID); it gets a dashed box and can then be dragged.
+  P._selectText = function (id) {
+    this.selectedText = id || null;
+    var sel = this.selectedText, old = this.world.querySelectorAll('.ctl-text-sel');
+    old.forEach(function (r) { r.parentNode.removeChild(r); });
+    this.world.querySelectorAll('.ctl-text, .ctl-titleg').forEach(function (g) {
+      var on = sel && (g.classList.contains('ctl-titleg') ? TITLE_ID : g.dataset.t) === sel;
+      g.classList.toggle('is-selected', !!on);
+      if (!on) return;
+      var b;
+      try { b = g.getBBox(); } catch (e) { return; }
+      var r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      r.setAttribute('class', 'ctl-text-sel');
+      r.setAttribute('x', r1(b.x - 8)); r.setAttribute('y', r1(b.y - 6));
+      r.setAttribute('width', r1(b.width + 16)); r.setAttribute('height', r1(b.height + 12)); r.setAttribute('rx', 6);
+      g.appendChild(r);
+    });
+  };
+  // Where the middle of the map's visible area is, in map coordinates (the editor puts new texts there).
+  P.viewCenter = function () {
+    return { x: Math.round((this.W / 2 - this.v.tx) / this.v.s), y: Math.round(((this.H || 600) / 2 - this.v.ty) / this.v.s) };
+  };
+  P.selectText = function (id) { this._selectText(id); };
+
   // Editor: the selected line's circle gets a highlight and can be dragged.
   P._selectLine = function (id) {
     this.selectedLine = id || null;
@@ -1409,12 +1486,22 @@
       E.moved = true;
       this._dragged = true;
       try { this.svg.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
-      this.svg.classList.add(E.kind === 'line' || E.kind === 'move' ? 'is-moving-line' : 'is-linking');
+      this.svg.classList.add(E.kind === 'line' || E.kind === 'move' || E.kind === 'text' ? 'is-moving-line' : 'is-linking');
       this.tip.hidden = true;
     }
     if (E.kind === 'line') {
       var g = this._lineGroup(E.id);
       if (g) g.setAttribute('transform', 'translate(' + r1(dx / s) + ' ' + r1(dy / s) + ')');
+      return;
+    }
+    if (E.kind === 'text') {
+      E.el.setAttribute('transform', 'translate(' + r1(dx / s) + ' ' + r1(dy / s) + ')');
+      if (E.id === TITLE_ID && this.player && !this.player.hidden && this._titleBox) {   // the music player follows the title
+        var tb = this._titleBox;
+        this._titleBox = { x: tb.x + dx / s, y: tb.y + dy / s, width: tb.width, height: tb.height };
+        this._placePlayer(false);
+        this._titleBox = tb;
+      }
       return;
     }
     if (E.kind === 'move') {   // dragging a free point by its handle
@@ -1477,6 +1564,19 @@
         x: Math.max(20, Math.round((PM.x + (e.clientX - E.x) / s) / 10) * 10),
         y: Math.max(20, Math.round((PM.y + (e.clientY - E.y) / s) / 10) * 10)
       });
+      return;
+    }
+    if (E.kind === 'text') {
+      var ddx = (e.clientX - E.x) / s, ddy = (e.clientY - E.y) / s;
+      if (E.id === TITLE_ID) {
+        var tp = this.L.titlePos;
+        if (!cancelled && this.opts.onMoveTitle) this.opts.onMoveTitle({ x: Math.round((tp.x + ddx) / 5) * 5, y: Math.round((tp.y + ddy) / 5) * 5 });
+        else this.refresh();
+      } else {
+        var T0 = this.data.texts.find(function (x) { return x.id === E.id; });
+        if (!cancelled && T0 && this.opts.onMoveText) this.opts.onMoveText(E.id, { x: Math.max(0, Math.round((+T0.x + ddx) / 5) * 5), y: Math.max(0, Math.round((+T0.y + ddy) / 5) * 5) });
+        else this.refresh();
+      }
       return;
     }
     if (E.kind === 'end') {
