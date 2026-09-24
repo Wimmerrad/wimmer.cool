@@ -208,25 +208,27 @@
     var TRACK = G.TRACK, ABOVE = G.ABOVE, BELOW = G.BELOW;
     var titleLines = s.showTitle !== false && s.title ? wrap(s.title, 18, 2) : [];
     var top = titleLines.length ? 40 + titleLines.length * 70 + (s.subtitle ? 44 : 0) : 20;
-    var pos = new Map(), lines = [], y = top, right = 0;
+    var pos = new Map(), lines = [], y = top, right = 0, bottom = 0;
     data.lines.forEach(function (line) {
       var pts = data.points.filter(function (p) { return p._line === line.id; });
-      var startCol = 0, startPt = line.start && pos.get(line.start);
-      if (startPt) startCol = startPt.col;
+      var startPt = line.start && pos.get(line.start);
       var minT = 0, maxT = 0;
       pts.forEach(function (p) { minT = Math.min(minT, p._track); maxT = Math.max(maxT, p._track); });
-      var y0 = y + Math.max(ABOVE - minT * TRACK, R_T + 10) + (startPt ? 20 : 0);
-      var tx = X0 + startCol * SP;
+      // A line placed by hand (dragged in the editor) keeps its spot; others stack below each other.
+      var manual = line.pos && isFinite(line.pos.x) && isFinite(line.pos.y);
+      var tx = manual ? +line.pos.x : startPt ? startPt.x : X0;
+      var y0 = manual ? +line.pos.y : y + Math.max(ABOVE - minT * TRACK, R_T + 10) + (startPt ? 20 : 0);
       pts.forEach(function (p, i) {
-        var col = startCol + i + 1;
-        pos.set(p.id, { x: X0 + col * SP, y: y0 + p._track * TRACK, y0: y0, col: col, line: line, p: p });
+        pos.set(p.id, { x: tx + (i + 1) * SP, y: y0 + p._track * TRACK, y0: y0, line: line, p: p });
       });
-      var rec = { line: line, x: tx, y: y0, pts: pts, start: startPt || null, SP: SP };
+      var rec = { line: line, x: tx, y: y0, pts: pts, start: startPt || null, SP: SP, manual: manual };
       lines.push(rec);
-      y = y0 + maxT * TRACK + BELOW + GAP;
+      if (!manual) y = y0 + maxT * TRACK + BELOW + GAP;
+      bottom = Math.max(bottom, y0 + maxT * TRACK + BELOW + GAP);
       var lastX = pts.length ? pos.get(pts[pts.length - 1].id).x : tx;
       right = Math.max(right, lastX + SP);
     });
+    y = Math.max(y, bottom);
     // Branches: consecutive stations on the same non-zero track leave the main line
     // at the station before them and rejoin at the next main-line station.
     lines.forEach(function (L) {
@@ -313,22 +315,26 @@
       out.push(textLines(L.titleLines, X0 - 36, 30 + L.titleLines.length * 70 - 12, 70, 'class="ctl-maptitle" font-size="68"'));
       if (s.subtitle) out.push(textLines(wrap(s.subtitle, 90, 2).slice(0, 1), X0 - 34, 30 + L.titleLines.length * 70 + 26, 20, 'class="ctl-mapsub" font-size="16"'));
     }
+    // Each line's track, circle and stations share one group, so the editor can drag a whole line at once.
+    var per = new Map();
+    L.lines.forEach(function (R) { per.set(R.line.id, { tracks: [], term: '', st: [] }); });
     // Where a line begins from a station on another line
     L.lines.forEach(function (R) {
       if (!R.start) return;
-      out.push('<path class="ctl-startlink" stroke="' + R.line._color + '" d="M' + R.start.x + ',' + (R.start.y + (G.covers ? G.CH / 2 + 90 : R_ST + 4)) + 'V' + (R.y - R_T - 4) + '"/>');
+      var sx = R.start.x, sy = R.start.y + (G.covers ? G.CH / 2 + 90 : R_ST + 4), ex = R.x, ey = R.y - R_T - 4, my = (sy + ey) / 2;
+      out.push('<path class="ctl-startlink" fill="none" stroke="' + R.line._color + '" d="M' + r1(sx) + ',' + r1(sy) + 'C' + r1(sx) + ',' + r1(my) + ' ' + r1(ex) + ',' + r1(my) + ' ' + r1(ex) + ',' + r1(ey) + '"/>');
     });
     // Tracks: branches first, then the main line on top
     L.lines.forEach(function (R) {
-      var c = R.line._color;
+      var c = R.line._color, g = per.get(R.line.id);
       R.branches.forEach(function (b) {
         var yt = R.y + b.track * TRACK, xa = b.from ? b.from.x : R.x;
         var pts = [[xa, R.y], [xa, yt]];
         if (b.to) pts.push([b.to.x, yt], [b.to.x, R.y]);
         else pts.push([b.last.x + SP * 0.6, yt]);
-        out.push('<path class="ctl-track" stroke="' + c + '" d="' + roundedPath(pts, 24) + '"/>');
+        g.tracks.push('<path class="ctl-track" stroke="' + c + '" d="' + roundedPath(pts, 24) + '"/>');
       });
-      if (R.endX > R.x) out.push('<path class="ctl-track" stroke="' + c + '" d="M' + R.x + ',' + R.y + 'H' + r1(R.endX) + '"/>');
+      if (R.endX > R.x) g.tracks.push('<path class="ctl-track" stroke="' + c + '" d="M' + R.x + ',' + R.y + 'H' + r1(R.endX) + '"/>');
     });
     // Links between stations on different lines
     data.connections.forEach(function (c) {
@@ -366,15 +372,15 @@
       var l = R.line, fg = onColor(l.color), label = String(l.label || '');
       var fs = label.length <= 4 ? 25 : label.length <= 6 ? 19 : 15;
       var name = wrap(l.name || '', 11, 2);
-      out.push('<g class="ctl-term"><circle cx="' + R.x + '" cy="' + R.y + '" r="' + R_T + '" fill="' + l._color + '"/>' +
+      per.get(l.id).term = ('<g class="ctl-term" data-line="' + esc(l.id) + '"><circle cx="' + R.x + '" cy="' + R.y + '" r="' + R_T + '" fill="' + l._color + '"/>' +
         '<text class="ctl-term-label" x="' + R.x + '" y="' + (R.y + (name.length ? -3 : fs / 3)) + '" text-anchor="middle" font-size="' + fs + '" fill="' + fg + '">' + esc(label) + '</text>' +
         (name.length ? textLines(name, R.x, R.y + (name.length > 1 ? 24 : 15), 11, 'class="ctl-term-name" text-anchor="middle" font-size="10" fill="' + fg + '"') : '') +
         '<title>' + esc(l.name || label) + '</title></g>');
     });
     // Stations
     L.pos.forEach(function (P, id) {
-      var p = P.p, x = P.x, y = P.y, c = P.line._color, h = '';
-      if (G.covers) { out.push(drawCover(P, id, G, img)); return; }
+      var p = P.p, x = P.x, y = P.y, c = P.line._color, h = '', st = per.get(P.line.id).st;
+      if (G.covers) { st.push(drawCover(P, id, G, img)); return; }
       var pic = p.mapImage && p.images[0];
       if (pic) {
         h += '<image href="' + esc(img(pic.src)) + '" x="' + (x - 10) + '" y="' + (y - 84) + '" width="' + (SP - 24) + '" height="62" preserveAspectRatio="xMinYMax meet"/>';
@@ -384,11 +390,15 @@
       var date = pointDate(p).toUpperCase(), max = Math.floor((SP - 34) / 7.3);
       if (date) h += '<text class="ctl-st-date" x="' + (x + R_ST + 6) + '" y="' + (y + 3.6) + '" font-size="11.5" fill="' + c + '">' + esc(date.length > max ? date.slice(0, max - 1) + '…' : date) + ' »</text>';
       if (p.caption) h += textLines(wrap(p.caption, Math.floor((SP - 12) / 7.1), 2), x - 10, y + 31 + (wrap(p.caption, Math.floor((SP - 12) / 7.1), 2).length - 1) * 16, 16, 'class="ctl-st-cap" font-size="13.5" fill="' + c + '"');
-      out.push('<g class="ctl-st" data-id="' + esc(id) + '" tabindex="0" role="button" aria-label="' + esc((p.title || 'Untitled') + (date ? ', ' + pointDate(p, true) : '')) + '" style="--c:' + c + '">' +
+      st.push('<g class="ctl-st" data-id="' + esc(id) + '" tabindex="0" role="button" aria-label="' + esc((p.title || 'Untitled') + (date ? ', ' + pointDate(p, true) : '')) + '" style="--c:' + c + '">' +
         '<rect class="ctl-hit" x="' + (x - 18) + '" y="' + (y - 90) + '" width="' + (SP - 10) + '" height="' + (p.caption ? 136 : 106) + '" rx="8"/>' + h +
         '<circle class="ctl-halo" cx="' + x + '" cy="' + y + '" r="' + (R_ST + 7) + '"/>' +
         '<circle class="ctl-ring" cx="' + x + '" cy="' + y + '" r="' + R_ST + '" stroke="' + c + '"/></g>');
     });
+    per.forEach(function (g, id) {
+      out.push('<g class="ctl-lineg" data-line="' + esc(id) + '">' + g.tracks.join('') + g.term + g.st.join('') + '</g>');
+    });
+    out.push('<path class="ctl-dragline" d=""/>');   // editor: the line that follows the pointer while connecting
     return out.join('');
   }
 
@@ -470,6 +480,11 @@
     this.svg.addEventListener('click', function (e) {
       var g = e.target.closest('.ctl-st');
       if (g && !self._dragged) self.select(g.dataset.id === self.selected && self.opts.panel ? null : g.dataset.id, { pan: false });
+    });
+    // Editor only: double-click a line's circle to add a point to that line
+    this.svg.addEventListener('dblclick', function (e) {
+      var t = e.target.closest('.ctl-term');
+      if (t && self.opts.editable && self.opts.onAddToLine) { e.preventDefault(); self.opts.onAddToLine(t.getAttribute('data-line')); }
     });
     this.svg.addEventListener('keydown', function (e) {
       var g = e.target.closest && e.target.closest('.ctl-st');
@@ -607,7 +622,10 @@
     }).map(function (c) { return c._type; }));
     this.legend.innerHTML = this.data.types.filter(function (t) { return used.has(t.id); }).map(function (t) {
       return '<span title="' + esc(t.description || '') + '">' + kindSample(t) + esc(t.name) + '</span>';
-    }).join('') + '<span class="ctl-hint">' + this.hint + '</span>';
+    }).join('') + '<span class="ctl-hint">' + (this.opts.editable
+      ? 'Double-click a line’s circle to add a point · drag a circle to move its line · drag a station onto another to connect them'
+      : this.hint) + '</span>';
+    this.root.classList.toggle('ctl-editable', !!this.opts.editable);
     this._syncTools();
     this.W = this.stage.clientWidth || 800;
     this.root.classList.toggle('ctl-narrow', this.W < 640);
@@ -759,6 +777,15 @@
     this._pointerFocus = true;
     var self = this;
     setTimeout(function () { self._pointerFocus = false; }, 0);
+    // Editor only: a line's circle drags the whole line; a station drags out a new connection.
+    if (this.opts.editable && this.viewMode === 'map' && !this.pointers.size) {
+      var term = e.target.closest('.ctl-term'), st = !term && e.target.closest('.ctl-st');
+      if (term || st) {
+        this.edit = { kind: term ? 'line' : 'link', id: term ? term.dataset.line : st.dataset.id, pid: e.pointerId, x: e.clientX, y: e.clientY, moved: false };
+        this._dragged = false;
+        return;
+      }
+    }
     this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (this.pointers.size === 1) {
       this.drag = { id: e.pointerId, x: e.clientX, y: e.clientY, tx: this.v.tx, ty: this.v.ty, moved: false, vert: e.pointerType !== 'touch' || this.root.classList.contains('ctl-full') };
@@ -770,6 +797,7 @@
     }
   };
   P._move = function (e) {
+    if (this.edit && this.edit.pid === e.pointerId) { this._editMove(e); return; }
     if (!this.pointers.has(e.pointerId)) return;
     this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (this.pinch && this.pointers.size >= 2) {
@@ -794,7 +822,65 @@
     if (g.vert) this.v.ty = g.ty + dy;   // touch on an embedded map leaves vertical swipes to page scrolling
     this._apply();
   };
+  // ---------- editor dragging ----------
+  P._lineGroup = function (id) {
+    var found = null;
+    this.world.querySelectorAll('.ctl-lineg').forEach(function (g) { if (g.getAttribute('data-line') === id) found = g; });
+    return found;
+  };
+  P._stationAt = function (e) {
+    var hit = document.elementFromPoint(e.clientX, e.clientY);
+    return hit && hit.closest ? hit.closest('.ctl-st') : null;
+  };
+  P._editMove = function (e) {
+    var E = this.edit, dx = e.clientX - E.x, dy = e.clientY - E.y, s = this.v.s;
+    if (!E.moved) {
+      if (Math.hypot(dx, dy) < 5) return;
+      E.moved = true;
+      this._dragged = true;
+      try { this.svg.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+      this.svg.classList.add(E.kind === 'line' ? 'is-moving-line' : 'is-linking');
+      this.tip.hidden = true;
+    }
+    if (E.kind === 'line') {
+      var g = this._lineGroup(E.id);
+      if (g) g.setAttribute('transform', 'translate(' + r1(dx / s) + ' ' + r1(dy / s) + ')');
+      return;
+    }
+    var P0 = this.L.pos.get(E.id), r = this.svg.getBoundingClientRect();
+    var wx = (e.clientX - r.left - this.v.tx) / s, wy = (e.clientY - r.top - this.v.ty) / s;
+    var dl = this.world.querySelector('.ctl-dragline');
+    if (dl && P0) dl.setAttribute('d', 'M' + r1(P0.x) + ',' + r1(P0.y) + 'L' + r1(wx) + ',' + r1(wy));
+    var t = this._stationAt(e);
+    this.world.querySelectorAll('.ctl-st.is-drop').forEach(function (x) { x.classList.remove('is-drop'); });
+    if (t && t.dataset.id !== E.id) t.classList.add('is-drop');
+  };
+  P._editEnd = function (e) {
+    var E = this.edit, self = this, s = this.v.s;
+    this.edit = null;
+    this.svg.classList.remove('is-moving-line', 'is-linking');
+    var dl = this.world.querySelector('.ctl-dragline');
+    if (dl) dl.setAttribute('d', '');
+    this.world.querySelectorAll('.ctl-st.is-drop').forEach(function (x) { x.classList.remove('is-drop'); });
+    setTimeout(function () { self._dragged = false; }, 0);
+    if (!E.moved) return;
+    var cancelled = e.type === 'pointercancel';
+    if (E.kind === 'line') {
+      var R = this.L.lines.find(function (x) { return x.line.id === E.id; });
+      var g = this._lineGroup(E.id);
+      if (cancelled || !R || !this.opts.onMoveLine) { if (g) g.removeAttribute('transform'); return; }
+      // snap to a 10px grid so lines line up easily
+      var nx = Math.max(R_T + 10, Math.round((R.x + (e.clientX - E.x) / s) / 10) * 10);
+      var ny = Math.max(R_T + 10, Math.round((R.y + (e.clientY - E.y) / s) / 10) * 10);
+      this.opts.onMoveLine(E.id, { x: nx, y: ny });
+    } else if (!cancelled) {
+      var t = this._stationAt(e);
+      if (t && t.dataset.id !== E.id && this.opts.onConnect) this.opts.onConnect(E.id, t.dataset.id);
+    }
+  };
+
   P._up = function (e) {
+    if (this.edit && this.edit.pid === e.pointerId) { this._editEnd(e); return; }
     this.pointers.delete(e.pointerId);
     if (this.pointers.size < 2) this.pinch = null;
     if (this.drag && this.drag.id === e.pointerId) {
@@ -999,7 +1085,9 @@
 
   // ---------- public ----------
   P.setOptions = function (o) {
+    var editChanged = 'editable' in o && !!o.editable !== !!this.opts.editable;
     Object.assign(this.opts, o);
+    if (editChanged) this.refresh();
     if (!this.opts.panel) this._closePanel(); else if (this.selected) this._renderPanel();
   };
   P.refresh = function () { this.setData(this._raw, {}); };

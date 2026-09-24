@@ -330,7 +330,18 @@ window.__startEditor = function () {
     readHash: false,
     height: '100%',
     resolveImage: function (src) { return S.imageUrls.get(src) || null; },
-    onSelect: function (id) { if (id) openPoint(id, true); }
+    onSelect: function (id) { if (id) openPoint(id, true); },
+    editable: true,
+    // double-click a line's circle: new point at the end of that line
+    onAddToLine: function (lineId) { addPoint({ line: lineId }); },
+    // drag a line's circle: place the line there
+    onMoveLine: function (lineId, xy) {
+      mutate(function (d) { var l = d.lines.find(function (x) { return x.id === lineId; }); if (l) l.pos = { x: xy.x, y: xy.y }; });
+      updatePreview();
+      if (S.tab === 'lanes') render();
+    },
+    // drag a station onto another: connect them
+    onConnect: function (a, b) { addConnection(a, b); }
   });
   var previewT;
   function schedulePreview() { clearTimeout(previewT); previewT = setTimeout(updatePreview, 120); }
@@ -338,7 +349,7 @@ window.__startEditor = function () {
 
   $('visitor-view').addEventListener('change', function (e) {
     var v = e.target.checked;
-    tl.setOptions({ panel: v });
+    tl.setOptions({ panel: v, editable: !v });
   });
 
   // ---------- serialising ----------
@@ -579,6 +590,8 @@ window.__startEditor = function () {
         '<div class="ed-field" style="margin-top:6px"><span>Colour</span>' + swatches('data-lid', l.id, l.color) + '</div>' +
         '<label class="ed-field"><span>Where the line starts</span><select data-lnf="start" data-lid="' + id + '">' + startOpts + '</select></label>' +
         '<label class="ed-check"><input type="checkbox" data-lnf="continues" data-lid="' + id + '"' + (l.continues !== false ? ' checked' : '') + '> Keep going to the right edge (the story continues)</label>' +
+        (l.pos ? '<p class="ed-hint" style="margin:-4px 0 10px">Placed by hand in the preview. <button type="button" class="ed-link" data-a="lane-unpin" data-lid="' + id + '">Put it back in the automatic layout</button></p>'
+               : '<p class="ed-hint" style="margin:-4px 0 10px">Tip: drag the line’s circle in the preview to place it anywhere.</p>') +
         '<div class="ed-card-foot"><span>' + n + (n === 1 ? ' point' : ' points') + '</span><span class="ed-card-row">' +
         '<button type="button" class="ed-btn small icon" data-a="lane-move" data-lid="' + id + '" data-d="-1" aria-label="Move up"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
         '<button type="button" class="ed-btn small icon" data-a="lane-move" data-lid="' + id + '" data-d="1" aria-label="Move down"' + (i === d.lines.length - 1 ? ' disabled' : '') + '>↓</button>' +
@@ -628,7 +641,9 @@ window.__startEditor = function () {
 
   function addPoint(init) {
     init = init || {};
-    var d = S.data, id = uniqueId('new-point', ids(d.points)), last = sortedPoints().slice(-1)[0];
+    var d = S.data, id = uniqueId('new-point', ids(d.points)), last = sortedPoints().filter(function (p) {
+      return !init.line || laneOf(p.line).id === init.line;   // adding to a line: continue after that line's last point
+    }).slice(-1)[0];
     var lastY = last && CT.parseDate(last.date) ? CT.parseDate(last.date).y + 1 : new Date().getFullYear();
     var date = init.date || String(lastY);
     var line = init.line && d.lines.some(function (l) { return l.id === init.line; }) ? init.line : (last ? laneOf(last.line).id : d.lines[0].id);
@@ -868,6 +883,10 @@ window.__startEditor = function () {
       updatePreview(); render();
       var li = pane.querySelector('[data-lnf="name"][data-lid="' + lid + '"]');
       if (li) { li.focus(); li.select(); }
+    }
+    else if (a === 'lane-unpin') {
+      mutate(function (dd) { var l = dd.lines.find(function (x) { return x.id === b.dataset.lid; }); if (l) delete l.pos; });
+      updatePreview(); render();
     }
     else if (a === 'lane-move') {
       mutate(function (dd) {

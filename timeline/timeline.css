@@ -131,7 +131,20 @@ html:has(.ctl-full), body:has(.ctl-full) { height: 100%; overflow: hidden; overs
 .ctl-cover-frame { fill: none; stroke-width: 4; transition: stroke-width 0.12s; }
 .ctl-st.ctl-cover:hover .ctl-cover-frame, .ctl-st.ctl-cover:focus-visible .ctl-cover-frame { stroke-width: 6; }
 .ctl-cv-date { font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
-.ctl-link-note { font-style: italic; font-weight: 600; }   /* block behind each date so the line breaks cleanly around it */
+.ctl-link-note { font-style: italic; font-weight: 600; }
+/* Faded covers get darker instead of see-through, so lines don't show through the pictures */
+.ctl-map.has-focus .ctl-st.ctl-cover:not(.is-on),
+.ctl-map.has-query .ctl-st.ctl-cover:not(.is-match) { opacity: 1; filter: brightness(0.35) saturate(0.4); }
+.ctl-st.ctl-cover { transition: filter 0.15s; }
+
+/* Editor-only dragging */
+.ctl-editable .ctl-term { cursor: move; }
+.ctl-editable .ctl-term:hover circle { stroke: var(--ctl-hi); stroke-width: 3; }
+.ctl-map.is-moving-line, .ctl-map.is-moving-line .ctl-term { cursor: grabbing; }
+.ctl-map.is-moving-line .ctl-link, .ctl-map.is-moving-line .ctl-startlink { opacity: 0.12; }
+.ctl-map.is-linking, .ctl-map.is-linking .ctl-st { cursor: crosshair; }
+.ctl-dragline { fill: none; stroke: var(--ctl-hi); stroke-width: 3; stroke-dasharray: 7 6; stroke-linecap: round; pointer-events: none; }
+.ctl-st.is-drop .ctl-halo { opacity: 1; stroke-width: 5; }   /* block behind each date so the line breaks cleanly around it */
 .ctl-st-cap { font-style: italic; }
 .ctl-map.has-query .ctl-st:not(.is-match), .ctl-map.has-focus .ctl-st:not(.is-on) { opacity: 0.28; }
 .ctl-map.has-focus .ctl-link:not(.is-on) { opacity: 0.15; }
