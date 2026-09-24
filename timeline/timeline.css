@@ -204,8 +204,38 @@ body:has(.ctl-full) { margin: 0; }
 .ctl-lightbox .ctl-iconbtn { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.25); color: #fff; width: 40px; height: 40px; }
 .ctl-lightbox .ctl-iconbtn:disabled { opacity: 0.25; }
 
-.ctl.ctl-narrow .ctl-search input { width: 130px; }
-.ctl.ctl-narrow .ctl-panel { top: 0; right: 0; bottom: 0; width: 100%; border-radius: 0; border: 0; }
+/* ---------- Phones ---------- */
+.ctl-grab { display: none; }
+.ctl.ctl-full .ctl-map { touch-action: none; }   /* full-window map: one finger pans in every direction */
+.ctl.ctl-narrow .ctl-tools { top: 10px; right: 10px; gap: 5px; }
+.ctl.ctl-narrow .ctl-search { flex: 1 1 110px; min-width: 0; }
+.ctl.ctl-narrow .ctl-search input { width: 100%; }
+.ctl.ctl-narrow .ctl-tools [data-act="zoom-in"], .ctl.ctl-narrow .ctl-tools [data-act="zoom-out"] { display: none; }  /* pinch instead */
+.ctl.ctl-narrow .ctl-tools { left: 10px; max-width: none; flex-wrap: nowrap; }
+.ctl.ctl-narrow .ctl-legend { left: 10px; bottom: 10px; max-width: calc(100% - 20px); }
 .ctl.ctl-narrow .ctl-legend .ctl-hint { display: none; }
+.ctl.ctl-narrow.ctl-sheet-open .ctl-legend { display: none; }
+/* Details become a bottom sheet */
+.ctl.ctl-narrow .ctl-panel {
+  top: auto; left: 0; right: 0; bottom: 0; width: 100%;
+  height: 56%; max-height: calc(100% - 64px);
+  border: 0; border-top: 1px solid var(--ctl-line-strong); border-radius: 16px 16px 0 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  transform: translateY(calc(100% + 24px));
+  transition: transform 0.26s cubic-bezier(.2,.7,.2,1), height 0.26s cubic-bezier(.2,.7,.2,1), visibility 0s linear 0.26s;
+}
+.ctl.ctl-narrow .ctl-panel.is-open { transform: none; transition: transform 0.26s cubic-bezier(.2,.7,.2,1), height 0.26s cubic-bezier(.2,.7,.2,1); }
+.ctl.ctl-narrow .ctl-panel.is-expanded { height: calc(100% - 64px); }
+.ctl.ctl-narrow .ctl-grab {
+  display: block; position: relative; flex: none; width: 100%; height: 24px; padding: 0;
+  border: 0; background: transparent; cursor: grab; touch-action: none;
+}
+.ctl.ctl-narrow .ctl-grab::before {
+  content: ""; position: absolute; left: 50%; top: 10px; width: 42px; height: 5px; margin-left: -21px;
+  border-radius: 3px; background: var(--ctl-line-strong);
+}
+.ctl.ctl-narrow .ctl-panel-top { padding-top: 0; touch-action: none; }
+.ctl.ctl-narrow .ctl-ptitle { font-size: 1.3rem; }
+.ctl.ctl-narrow .ctl-figure-btn img { max-height: 180px; }
 
 @media (prefers-reduced-motion: reduce) { .ctl-panel, .ctl-panel.is-open { transition: none; } }

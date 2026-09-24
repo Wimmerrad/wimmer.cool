@@ -363,6 +363,7 @@
         '</div>' +
         '<div class="ctl-legend"></div>' +
         '<aside class="ctl-panel" aria-label="Details">' +
+          '<button type="button" class="ctl-grab" data-act="grab" aria-label="Show more or less of the details"></button>' +
           '<div class="ctl-panel-top"><span class="ctl-linechip"></span><button type="button" class="ctl-iconbtn" data-act="close" aria-label="Close details">' + ICON.close + '</button></div>' +
           '<div class="ctl-panel-body"></div>' +
           '<div class="ctl-panel-nav"><button type="button" class="ctl-btn" data-act="prev">' + ICON.left + 'Previous stop</button><button type="button" class="ctl-btn" data-act="next">Next stop' + ICON.right + '</button></div>' +
@@ -435,12 +436,43 @@
       var b = e.target.closest('button');
       if (!b) return;
       if (b.dataset.act === 'close') self.select(null);
+      else if (b.dataset.act === 'grab') { if (!self._sheetDragged) self.panel.classList.toggle('is-expanded'); }
       else if (b.dataset.act === 'prev') self.step(-1);
       else if (b.dataset.act === 'next') self.step(1);
       else if (b.dataset.go) self.select(b.dataset.go);
       else if (b.dataset.img != null) self._showFigure(+b.dataset.img);
       else if (b.dataset.zoom != null) self._openLightbox(+b.dataset.zoom);
     });
+    // Phone bottom sheet: drag the handle down to shrink or close it, up to expand it; tap the handle to toggle.
+    var sheet = null;
+    this.panel.addEventListener('pointerdown', function (e) {
+      if (!root.classList.contains('ctl-narrow') || !e.target.closest('.ctl-grab, .ctl-panel-top') || e.target.closest('[data-act="close"]')) return;
+      sheet = { id: e.pointerId, y: e.clientY, dy: 0 };
+      self._sheetDragged = false;
+      try { self.panel.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+      self.panel.style.transition = 'none';
+    });
+    this.panel.addEventListener('pointermove', function (e) {
+      if (!sheet || sheet.id !== e.pointerId) return;
+      sheet.dy = e.clientY - sheet.y;
+      if (Math.abs(sheet.dy) > 6) self._sheetDragged = true;
+      self.panel.style.transform = 'translateY(' + Math.max(0, sheet.dy) + 'px)';
+    });
+    var endSheet = function (e) {
+      if (!sheet || sheet.id !== e.pointerId) return;
+      var dy = sheet.dy;
+      sheet = null;
+      self.panel.style.transition = '';
+      self.panel.style.transform = '';
+      if (dy > 70) {
+        if (self.panel.classList.contains('is-expanded')) self.panel.classList.remove('is-expanded');
+        else self.select(null);
+      } else if (dy < -40) self.panel.classList.add('is-expanded');
+      setTimeout(function () { self._sheetDragged = false; }, 0);
+    };
+    this.panel.addEventListener('pointerup', endSheet);
+    this.panel.addEventListener('pointercancel', endSheet);
+
     this.listEl.addEventListener('click', function (e) {
       var b = e.target.closest('[data-go]');
       if (b) self.select(b.dataset.go);
@@ -496,6 +528,7 @@
     }).join('') + '<span class="ctl-hint">' + this.hint + '</span>';
     this._syncTools();
     this.W = this.stage.clientWidth || 800;
+    this.root.classList.toggle('ctl-narrow', this.W < 640);
     this.H = this.stage.clientHeight || 500;
     if (!this._inited || o.fit) { this._inited = true; this.fit(false); } else this._apply();
     this._classes();
@@ -568,9 +601,10 @@
       s = clamp(Math.min(W / L.width, H / L.height), 0.2, 1.2);
       this._animTo(s, (W - L.width * s) / 2, (H - L.height * s) / 2, animate);
     } else {
-      s = clamp(W / L.width, 0.68, 1);
+      // phones get a readable size and pan sideways; larger screens fill the width
+      s = W < 640 ? 0.9 : clamp(W / L.width, 0.68, 1);
       // start a little lower when the floating toolbar would sit on top of the title
-      this._animTo(s, L.width * s < W ? (W - L.width * s) / 2 : 0, W < 1000 ? 44 : 0, false);
+      this._animTo(s, L.width * s < W ? (W - L.width * s) / 2 : 0, W < 1000 ? 48 : 0, false);
     }
     this.autoFit = true;
   };
@@ -627,7 +661,7 @@
     setTimeout(function () { self._pointerFocus = false; }, 0);
     this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (this.pointers.size === 1) {
-      this.drag = { id: e.pointerId, x: e.clientX, y: e.clientY, tx: this.v.tx, ty: this.v.ty, moved: false, mouse: e.pointerType !== 'touch' };
+      this.drag = { id: e.pointerId, x: e.clientX, y: e.clientY, tx: this.v.tx, ty: this.v.ty, moved: false, vert: e.pointerType !== 'touch' || this.root.classList.contains('ctl-full') };
       this._dragged = false;
     } else if (this.pointers.size === 2) {
       var p = Array.from(this.pointers.values());
@@ -657,7 +691,7 @@
       cancelAnimationFrame(this._raf);
     }
     this.v.tx = g.tx + dx;
-    if (g.mouse) this.v.ty = g.ty + dy;
+    if (g.vert) this.v.ty = g.ty + dy;   // touch on an embedded map leaves vertical swipes to page scrolling
     this._apply();
   };
   P._up = function (e) {
@@ -674,11 +708,14 @@
   P._ensureVisible = function (id) {
     var P0 = this.L.pos.get(id);
     if (!P0 || this.viewMode !== 'map') return;
-    var v = this.v, panelW = this.opts.panel && this.selected && this.W >= 640 ? Math.min(400, this.W - 24) + 24 : 0;
-    var x = v.tx + P0.x * v.s, y = v.ty + P0.y * v.s, room = this.W - panelW;
+    var v = this.v, open = this.opts.panel && this.selected, narrow = this.W < 640;
+    // on wide screens the panel covers the right side; on phones the sheet covers the bottom
+    var panelW = open && !narrow ? Math.min(400, this.W - 24) + 24 : 0;
+    var sheetH = open && narrow ? this.panel.offsetHeight : 0;
+    var x = v.tx + P0.x * v.s, y = v.ty + P0.y * v.s, room = this.W - panelW, roomH = this.H - sheetH;
     var tx = v.tx, ty = v.ty;
-    if (x < 60 || x > room - 120 * v.s) tx = room * 0.4 - P0.x * v.s;
-    if (y < 110 * v.s || y > this.H - 60) ty = this.H * 0.45 - P0.y * v.s;
+    if (x < (narrow ? 30 : 60) || x > room - 120 * v.s) tx = room * (narrow ? 0.3 : 0.4) - P0.x * v.s;
+    if (y < (narrow ? 70 : 110 * v.s) || y > roomH - 40) ty = roomH * 0.5 - P0.y * v.s;
     if (tx !== v.tx || ty !== v.ty) { this.autoFit = false; this._animTo(v.s, tx, ty, true); }
   };
 
@@ -771,6 +808,7 @@
     this.panel.querySelector('[data-act="prev"]').disabled = i <= 0;
     this.panel.querySelector('[data-act="next"]').disabled = i >= stops.length - 1;
     this.panel.classList.add('is-open');
+    this.root.classList.add('ctl-sheet-open');
   };
 
   P._figureHTML = function (p, i) {
@@ -785,7 +823,11 @@
     fig.outerHTML = this._figureHTML(p, i);
     this.panelBody.querySelectorAll('.ctl-thumbs button').forEach(function (b) { b.setAttribute('aria-current', String(+b.dataset.img === i)); });
   };
-  P._closePanel = function () { this.panel.classList.remove('is-open'); this._panelFor = null; };
+  P._closePanel = function () {
+    this.panel.classList.remove('is-open', 'is-expanded');
+    this.root.classList.remove('ctl-sheet-open');
+    this._panelFor = null;
+  };
 
   P._openLightbox = function (i) {
     var p = this.data.byId.get(this.selected);
@@ -870,7 +912,17 @@
   };
 
   function mount(el, data, opts) { return new Timeline(el, data, opts); }
+  // Phones only render at their real width when the page has a viewport tag; add one if the page lacks it.
+  function ensureViewport() {
+    if (document.querySelector('meta[name="viewport"]')) return;
+    var m = document.createElement('meta');
+    m.name = 'viewport';
+    m.content = 'width=device-width, initial-scale=1, viewport-fit=cover';
+    (document.head || document.documentElement).appendChild(m);
+  }
+
   function autoMount() {
+    if (document.querySelector('[data-timeline]')) ensureViewport();
     Array.prototype.forEach.call(document.querySelectorAll('[data-timeline]'), function (el) {
       if (el._ctl) return;
       var name = el.getAttribute('data-timeline') || 'TIMELINE_DATA';
