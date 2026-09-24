@@ -206,6 +206,8 @@ html:has(.ctl-full), body:has(.ctl-full) { height: 100%; overflow: hidden; overs
 .ctl-link.is-selected .ctl-link-line { stroke-width: 4.5; }
 .ctl-bend { fill: var(--ctl-bg); stroke: var(--ctl-hi); stroke-width: 3; cursor: move; }
 .ctl-bend:hover { fill: var(--ctl-hi); }
+.ctl-end { fill: var(--ctl-bg); stroke: var(--ctl-hi); stroke-width: 3; cursor: move; }
+.ctl-end:hover { fill: var(--ctl-hi); }
 /* editor: move handle next to a selected free point */
 .ctl-move { cursor: move; }
 .ctl-move circle { fill: var(--ctl-surface); stroke: var(--ctl-hi); stroke-width: 2.5; }

@@ -391,6 +391,17 @@ window.__startEditor = function () {
       updatePreview();
       if (S.tab === 'connections') render();
     },
+    // an end of a link was dragged (kept as an offset from its point), or double-clicked to put it back
+    onMoveEnds: function (cid, ends) {
+      mutate(function (d) {
+        var c = d.connections.find(function (x) { return x.id === cid; });
+        if (!c) return;
+        if (ends.from) c.fromEnd = [Math.round(ends.from[0]), Math.round(ends.from[1])]; else delete c.fromEnd;
+        if (ends.to) c.toEnd = [Math.round(ends.to[0]), Math.round(ends.to[1])]; else delete c.toEnd;
+      });
+      updatePreview();
+      if (S.tab === 'connections') render();
+    },
     onKindClick: function (tid) { openCard('types', 'data-tcard', tid); },
     editable: true,
     // double-click a line's circle: new point at the end of that line
@@ -707,7 +718,9 @@ window.__startEditor = function () {
           '<option value=""' + (!c.route ? ' selected' : '') + '>Same as the timeline (' + (d.settings.linkShape === 'straight' ? 'straight' : 'curved') + ')</option>' +
           '<option value="curve"' + (c.route === 'curve' ? ' selected' : '') + '>Curved</option>' +
           '<option value="straight"' + (c.route === 'straight' ? ' selected' : '') + '>Straight, with movable corners</option></select>' +
-          (c.bends ? '<button type="button" class="ed-btn small" data-a="conn-unbend" data-cid="' + cid + '" title="Go back to the automatic corners">Reset corners</button>' : '') + '</div></div>' +
+          (c.bends ? '<button type="button" class="ed-btn small" data-a="conn-unbend" data-cid="' + cid + '" title="Go back to the automatic corners">Reset corners</button>' : '') +
+          (c.fromEnd || c.toEnd ? '<button type="button" class="ed-btn small" data-a="conn-unend" data-cid="' + cid + '" title="Put both ends back where they’re placed automatically">Reset ends</button>' : '') + '</div>' +
+          '<small>Select the link on the map: drag its square handles to move where it starts and ends.</small></div>' +
         '<div class="ed-card-foot"><button type="button" class="ed-link" data-a="open-kind" data-tid="' + esc(t.id) + '">Change how “' + esc(t.name) + '” links look</button>' +
           '<button type="button" class="ed-btn small danger" data-a="conn-del" data-cid="' + cid + '">Delete connection</button></div></div>';
     });
@@ -1207,6 +1220,10 @@ window.__startEditor = function () {
     }
     else if (a === 'conn-unbend') {
       mutate(function (dd) { var c = dd.connections.find(function (x) { return x.id === b.dataset.cid; }); if (c) delete c.bends; });
+      updatePreview(); render();
+    }
+    else if (a === 'conn-unend') {
+      mutate(function (dd) { var c = dd.connections.find(function (x) { return x.id === b.dataset.cid; }); if (c) { delete c.fromEnd; delete c.toEnd; } });
       updatePreview(); render();
     }
     else if (a === 'start-unbend') {

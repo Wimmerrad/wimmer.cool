@@ -325,7 +325,20 @@
   }
 
   // The area a cover and the text under it take up, around its centre
-  function coverBoxOf(P, G) { return { l: P.x - G.CW / 2 - 6, r: P.x + G.CW / 2 + 6, t: P.y - G.CH / 2 - 6, b: P.y + G.CH / 2 + 84 }; }
+  function coverBoxOf(P, G) { return { l: P.x - G.CW / 2 - 6, r: P.x + G.CW / 2 + 6, t: P.y - G.CH / 2 - 6, b: P.y + coverBottom(P.p, G) }; }
+  // How far below its centre a cover's text ends (same steps as drawCover)
+  function coverBottom(p, G) {
+    var width = G.CW + 50, ty = G.CH / 2 + 24, last = G.CH / 2;
+    if (p.images && p.images[0]) {
+      var n = wrap(p.title || 'Untitled', Math.floor(width / 9.5), 2).length;
+      last = ty + (n - 1) * 19; ty = last + 19;
+    } else ty -= 4;
+    if (pointDate(p)) { last = ty; ty += 18; }
+    if (p.caption) last = ty + (wrap(p.caption, Math.floor(width / 7.2), 2).length - 1) * 16;
+    return last + 7;
+  }
+  // A link end moved by hand: kept as an offset from its point's centre, so it follows the point
+  function savedEnd(v, P) { return Array.isArray(v) && isFinite(v[0]) && isFinite(v[1]) ? [P.x + +v[0], P.y + +v[1]] : null; }
   function offTowards(p, q, d) { var l = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1; return [p[0] + (q[0] - p[0]) * d / l, p[1] + (q[1] - p[1]) * d / l]; }
 
   // Automatic corners for a straight link: down-across-down, or across-down-across, meeting halfway.
@@ -340,12 +353,14 @@
   }
 
   // Shape of one link. "curve": a smooth S-curve. "straight": straight segments through its corners.
-  // bends overrides the corners (used while dragging one in the editor).
-  function linkGeom(c, a, b, s, G, bends) {
+  // bends / ends override the corners and the ends (used while dragging one in the editor).
+  function linkGeom(c, a, b, s, G, bends, ends) {
     var straight = (c.route || s.linkShape) === 'straight';
-    // each end leaves from the edge of its cover (or the text under it), or from just outside its ring
-    var endA = function (toward) { return a.p._cover ? boxEdge([a.x, a.y], toward, coverBoxOf(a, G)) : offTowards([a.x, a.y], toward, R_ST + 5); };
-    var endB = function (toward) { return b.p._cover ? offTowards(boxEdge([b.x, b.y], toward, coverBoxOf(b, G)), toward, 4) : offTowards([b.x, b.y], toward, R_ST + 5); };
+    ends = ends || { from: c.fromEnd, to: c.toEnd };
+    var fixA = savedEnd(ends.from, a), fixB = savedEnd(ends.to, b);
+    // each end leaves from the edge of its cover (or the text under it), or from just outside its ring, unless moved by hand
+    var endA = function (toward) { return fixA || (a.p._cover ? boxEdge([a.x, a.y], toward, coverBoxOf(a, G)) : offTowards([a.x, a.y], toward, R_ST + 5)); };
+    var endB = function (toward) { return fixB || (b.p._cover ? offTowards(boxEdge([b.x, b.y], toward, coverBoxOf(b, G)), toward, 4) : offTowards([b.x, b.y], toward, R_ST + 5)); };
     if (!straight) {
       var dy = b.y - a.y, dx = b.x - a.x, vertical = Math.abs(dy) > Math.abs(dx) * 0.35;
       // find where each end leaves its point (straight down/up or sideways), then shape the curve between those ends,
@@ -382,7 +397,7 @@
   // The drop line from a station down to the big circle of a main point that starts there.
   // Curved, or straight with movable corners (startShape, else the timeline's link shape).
   function startGeom(R, G, s, bends) {
-    var sx = R.start.x, sy = R.start.y + (R.start.p._cover ? G.CH / 2 + 90 : R_ST + 4), ex = R.x, ey = R.y - R_T - 4, my = (sy + ey) / 2;
+    var sx = R.start.x, sy = R.start.y + (R.start.p._cover ? coverBottom(R.start.p, G) + 4 : R_ST + 4), ex = R.x, ey = R.y - R_T - 4, my = (sy + ey) / 2;
     if ((R.line.startShape || s.linkShape) !== 'straight') {
       return { straight: false, mid: [(sx + ex) / 2, my], side: sx === ex,
         d: 'M' + r1(sx) + ',' + r1(sy) + 'C' + r1(sx) + ',' + r1(my) + ' ' + r1(ex) + ',' + r1(my) + ' ' + r1(ex) + ',' + r1(ey) };
@@ -628,7 +643,7 @@
         if (self.opts.onLinkClick) self.opts.onLinkClick(lk.dataset.c);
         return;
       }
-      if (e.target.closest('.ctl-bend, .ctl-move')) return;
+      if (e.target.closest('.ctl-bend, .ctl-end, .ctl-move')) return;
       // Empty space: unselect
       self._selectLine(null);
       self._selectLink(null);
@@ -640,6 +655,14 @@
       if (!self.opts.editable) return;
       var t = e.target.closest('.ctl-term');
       if (t && self.opts.onAddToLine) { e.preventDefault(); self.opts.onAddToLine(t.getAttribute('data-line')); return; }
+      var endH = e.target.closest('.ctl-end'), LC = endH && self.selectedLink && self._linkParts(self.selectedLink);
+      if (LC && self.opts.onMoveEnds) {   // put that end back where it's placed automatically
+        var ends = { from: LC.c.fromEnd || null, to: LC.c.toEnd || null };
+        ends[endH.getAttribute('data-end')] = null;
+        e.preventDefault();
+        self.opts.onMoveEnds(LC.c.id, ends);
+        return;
+      }
       var bend = e.target.closest('.ctl-bend'), T = self._bendTarget();
       var save = T && (T.kind === 'link' ? self.opts.onMoveBends : self.opts.onMoveStartBends);
       if (!T || !save) return;
@@ -969,6 +992,13 @@
         this._dragged = false;
         return;
       }
+      var endH = e.target.closest('.ctl-end'), LE = endH && this.selectedLink && this._linkParts(this.selectedLink);
+      if (LE) {   // dragging one end of the selected link
+        this.edit = { kind: 'end', id: this.selectedLink, which: endH.getAttribute('data-end'), parts: LE, pid: e.pointerId, x: e.clientX, y: e.clientY, moved: false,
+          ends: { from: LE.c.fromEnd || null, to: LE.c.toEnd || null } };
+        this._dragged = false;
+        return;
+      }
       var bend = e.target.closest('.ctl-bend'), BT = bend && this._bendTarget();
       if (BT) {   // dragging a corner of the selected straight link or drop line
         this.edit = { kind: 'bend', tkind: BT.kind, id: BT.id, idx: +bend.getAttribute('data-i'), pid: e.pointerId, x: e.clientX, y: e.clientY, moved: false,
@@ -1227,12 +1257,17 @@
   };
 
   // Everything needed to redraw one link.
-  P._linkParts = function (cid, bends) {
+  P._linkParts = function (cid, bends, ends) {
     var d = this.data, c = d.connections.find(function (x) { return x.id === cid; });
     if (!c || !this.L) return null;
     var a = this.L.pos.get(c.from), b = this.L.pos.get(c.to);
-    if (!a || !b || a.line === b.line) return null;
-    return { c: c, a: a, b: b, t: d.typeById.get(c._type), geo: linkGeom(c, a, b, d.settings, this.L.G, bends) };
+    if (!a || !b || (a.line === b.line && !a.free && !b.free)) return null;
+    return { c: c, a: a, b: b, t: d.typeById.get(c._type), geo: linkGeom(c, a, b, d.settings, this.L.G, bends, ends) };
+  };
+  P._redrawLink = function (parts) {
+    var g = null;
+    this.world.querySelectorAll('.ctl-link').forEach(function (x) { if (x.dataset.c === parts.c.id) g = x; });
+    if (g) g.innerHTML = linkInner(parts.c, parts.t, parts.geo, this.data.settings, parts.a, parts.b);
   };
 
   // Editor: select a link; a straight one shows a draggable handle on each corner.
@@ -1268,15 +1303,19 @@
     var T = this._bendTarget();
     this._drawHandles(T ? T.geo.corners : null);
   };
-  P._drawHandles = function (corners) {
+  // Corner handles (round), plus the two end handles (square) of the selected link.
+  P._drawHandles = function (corners, geo) {
     var old = this.world.querySelector('.ctl-bends');
     if (old) old.parentNode.removeChild(old);
-    if (!corners) return;
+    if (!geo && this.selectedLink && this.opts.editable) { var parts = this._linkParts(this.selectedLink); geo = parts && parts.geo; }
+    if (!corners && !geo) return;
     var g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     g.setAttribute('class', 'ctl-bends');
-    g.innerHTML = corners.map(function (q, i) {
+    g.innerHTML = (corners || []).map(function (q, i) {
       return '<circle class="ctl-bend" data-i="' + i + '" cx="' + r1(q[0]) + '" cy="' + r1(q[1]) + '" r="8"><title>Drag to move this corner · double-click to remove it</title></circle>';
-    }).join('');
+    }).join('') + (geo ? [['from', geo.A], ['to', geo.B]].map(function (e) {
+      return '<rect class="ctl-end" data-end="' + e[0] + '" x="' + r1(e[1][0] - 6.5) + '" y="' + r1(e[1][1] - 6.5) + '" width="13" height="13" rx="2"><title>Drag to move this end of the link · double-click to put it back</title></rect>';
+    }).join('') : '');
     this.world.appendChild(g);
   };
 
@@ -1363,7 +1402,19 @@
       E.bends[E.idx] = [wx, wy];
       T = this._bendTarget(E.bends);
       this._redrawBendTarget(T);
-      this._drawHandles(T.geo.corners);
+      this._drawHandles(T.geo.corners, T.kind === 'link' ? T.geo : null);
+      return;
+    }
+    if (E.kind === 'end') {   // dragging one end of the selected link (it snaps to its point's centre line)
+      var we = this._toWorld(e), PE = this.L.pos.get(E.which === 'from' ? E.parts.c.from : E.parts.c.to);
+      var ox = Math.round(we[0] - PE.x), oy = Math.round(we[1] - PE.y);
+      if (Math.abs(ox) < 10 / s) ox = 0;
+      if (Math.abs(oy) < 10 / s) oy = 0;
+      E.ends[E.which] = [ox, oy];
+      var LP = this._linkParts(E.id, null, E.ends);
+      if (!LP) return;
+      this._redrawLink(LP);
+      this._drawHandles(LP.geo.straight ? LP.geo.corners : null, LP.geo);
       return;
     }
     var P0 = this.L.pos.get(E.id), r = this.svg.getBoundingClientRect();
@@ -1391,6 +1442,11 @@
         x: Math.max(20, Math.round((PM.x + (e.clientX - E.x) / s) / 10) * 10),
         y: Math.max(20, Math.round((PM.y + (e.clientY - E.y) / s) / 10) * 10)
       });
+      return;
+    }
+    if (E.kind === 'end') {
+      if (!cancelled && this.opts.onMoveEnds) this.opts.onMoveEnds(E.id, E.ends);
+      else this.refresh();
       return;
     }
     if (E.kind === 'bend') {
