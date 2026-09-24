@@ -105,6 +105,21 @@
   .ed-card { border: 1px solid var(--line); border-radius: 8px; padding: 10px; margin-bottom: 10px; background: var(--surface); }
   .ed-card { transition: box-shadow 0.3s, border-color 0.3s; scroll-margin-top: 10px; }
   /* Connections tab: roomier cards with a label over every control */
+  /* menu that pops up when a connection is dropped on empty space */
+  .ed-dropmenu {
+    position: fixed; z-index: 60; width: 290px; padding: 6px; border-radius: 10px;
+    background: var(--surface); border: 1px solid var(--line-strong); box-shadow: 0 12px 36px rgba(0,0,0,.35);
+  }
+  .ed-dropmenu-title { padding: 6px 8px 8px; font-size: 12px; color: var(--muted); line-height: 1.35; }
+  .ed-dropmenu button {
+    display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-items: center; width: 100%;
+    padding: 8px 10px; border: 0; border-radius: 7px; background: none; cursor: pointer; text-align: left; font-size: 13px;
+  }
+  .ed-dropmenu button > b { grid-column: 2; font-weight: 600; }
+  .ed-dropmenu button > small { grid-column: 2; font-size: 11.5px; color: var(--muted); }
+  .ed-dropmenu button > .ed-dot { grid-row: 1; grid-column: 1; }
+  .ed-dropmenu button:hover, .ed-dropmenu button:focus-visible { background: var(--band); outline: none; }
+  .ed-dropmenu button.is-cancel { display: block; color: var(--muted); border-top: 1px solid var(--line); border-radius: 0 0 7px 7px; margin-top: 4px; }
   .ed-conncard { padding: 14px 14px 12px; margin-bottom: 18px; }
   .ed-conncard .ed-field { margin-bottom: 14px; }
   .ed-conncard .ed-card-row > select { height: 34px; }
@@ -347,6 +362,13 @@ window.__startEditor = function () {
     },
     // click a dashed link: open that connection; click a kind in the legend: open that kind
     onLinkClick: function (cid) { openCard('connections', 'data-ccard', cid); },
+    // a connection dragged out of a station was dropped on empty space: offer to make a point there
+    onDropEmpty: function (fromId, xy, screen) { showDropMenu(fromId, xy, screen); },
+    // a free point was dragged by its move handle
+    onMovePoint: function (id, xy) {
+      mutate(function (d) { var p = d.points.find(function (x) { return x.id === id; }); if (p) p.pos = { x: xy.x, y: xy.y }; });
+      updatePreview();
+    },
     // corners of a main point's straight drop line were dragged, added or removed
     onMoveStartBends: function (lineId, bends) {
       mutate(function (d) {
@@ -392,6 +414,68 @@ window.__startEditor = function () {
   });
 
   function openLine(lineId) { openCard('lanes', 'data-lcard', lineId); }
+
+  // ---------- new point from a dropped connection ----------
+  function closeDropMenu() {
+    var m = $('drop-menu');
+    if (m) m.parentNode.removeChild(m);
+    document.removeEventListener('pointerdown', dropMenuOutside, true);
+    document.removeEventListener('keydown', dropMenuKey, true);
+  }
+  function dropMenuOutside(e) { if (!e.target.closest('#drop-menu')) closeDropMenu(); }
+  function dropMenuKey(e) { if (e.key === 'Escape') { e.preventDefault(); closeDropMenu(); } }
+
+  function showDropMenu(fromId, xy, screen) {
+    closeDropMenu();
+    var src = point(fromId);
+    if (!src) return;
+    var ln = src.line && S.data.lines.find(function (l) { return l.id === src.line; });
+    var m = document.createElement('div');
+    m.id = 'drop-menu';
+    m.className = 'ed-dropmenu';
+    m.setAttribute('role', 'menu');
+    m.innerHTML = '<div class="ed-dropmenu-title">New point here, connected to “' + esc(src.title || 'Untitled') + '”</div>' +
+      '<button type="button" role="menuitem" data-dm="free"><b>Free point</b><small>Not part of any main point</small></button>' +
+      (ln ? '<button type="button" role="menuitem" data-dm="line"><span class="ed-dot" style="--c:' + CT.hex(ln.color) + '"></span><b>Point of ' + esc((ln.label ? ln.label + ' · ' : '') + (ln.name || '')) + '</b><small>Same colour and group, but placed here instead of on the track</small></button>' : '') +
+      '<button type="button" role="menuitem" data-dm="cancel" class="is-cancel">Cancel</button>';
+    document.body.appendChild(m);
+    // open where the connection was dropped, kept on screen
+    var w = m.offsetWidth, h = m.offsetHeight;
+    m.style.left = Math.min(Math.max(8, screen.x + 8), innerWidth - w - 8) + 'px';
+    m.style.top = Math.min(Math.max(8, screen.y + 8), innerHeight - h - 8) + 'px';
+    m.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-dm]');
+      if (!b) return;
+      closeDropMenu();
+      if (b.dataset.dm !== 'cancel') createPointAt(fromId, xy, b.dataset.dm === 'line' ? ln.id : null);
+    });
+    m.querySelector('button').focus();
+    setTimeout(function () {
+      document.addEventListener('pointerdown', dropMenuOutside, true);
+      document.addEventListener('keydown', dropMenuKey, true);
+    }, 0);
+  }
+
+  // A new point placed freely at xy (optionally belonging to a main point), connected from fromId.
+  function createPointAt(fromId, xy, lineId) {
+    var d = S.data, src = point(fromId), id = uniqueId('new-point', ids(d.points)), cid = nextConnId();
+    var type = S.lastType && d.types.some(function (t) { return t.id === S.lastType; }) ? S.lastType : d.types[0].id;
+    mutate(function (dd) {
+      var p = { id: id, title: 'New point', date: (src && src.date) || String(new Date().getFullYear()), pos: { x: xy.x, y: xy.y } };
+      if (lineId) p.line = lineId;
+      dd.points.push(p);
+      dd.connections.push({ id: cid, from: fromId, to: id, type: type });
+    });
+    updatePreview();
+    S.tab = 'points';
+    S.editing = id;
+    render();
+    pane.scrollTop = 0;
+    tl.select(id, { silent: true });
+    var f = $('f-title');
+    if (f) { f.focus(); f.select(); }
+    toast('New point created and connected. Drag its ✥ handle in the preview to move it.');
+  }
 
   // Switch to a tab, scroll to one card in it and briefly outline it.
   function openCard(tab, attr, id) {
@@ -503,7 +587,7 @@ window.__startEditor = function () {
       if (nc) meta.push(nc + (nc === 1 ? ' connection' : ' connections'));
       return '<li><button type="button" data-a="open-point" data-id="' + esc(p.id) + '">' +
         '<span class="ed-date">' + esc(dateText(p)) + '</span>' +
-        '<span class="ed-dot" style="--c:' + CT.hex(laneOf(p.line).color) + '"></span>' +
+        '<span class="ed-dot" style="--c:' + (p.pos && !p.line ? '#c4c9ea' : CT.hex(laneOf(p.line).color)) + '"' + (p.pos ? ' title="Placed freely"' : '') + '></span>' +
         '<span class="ed-t">' + esc(p.title || 'Untitled') + '</span>' +
         (meta.length ? '<span class="ed-meta">' + meta.join(' · ') + '</span>' : '') + '</button></li>';
     }).join('');
@@ -530,11 +614,17 @@ window.__startEditor = function () {
       '<label class="ed-check"><input type="checkbox" data-f="circa"' + (p.circa ? ' checked' : '') + '> Approximate (shows “c.” before the date)</label></fieldset>';
     h += '<fieldset class="ed-fieldset"><legend class="ed-legend">End date <span class="ed-hint">(only for periods, e.g. a war or a career)</span></legend>' + dateInputs('end', p.end, false) + '</fieldset>';
     h += '<label class="ed-field"><span>Text on the line</span><input data-f="dateLabel" value="' + esc(p.dateLabel || '') + '" placeholder="Optional, e.g. “Year 79: The One Year War”"><small>Shown next to the station instead of the plain date. The date above still decides the order of stations.</small></label>';
-    h += '<label class="ed-field"><span>Main point</span><select data-f="line">' + options(S.data.lines, laneOf(p.line).id, function (l) { return (l.label ? l.label + ' · ' : '') + (l.name || ''); }) + '</select></label>';
-    var track = parseInt(p.track, 10) || 0;
-    h += '<label class="ed-field"><span>Position</span><select data-f="track">' + [[-2, 'Branch, two levels above'], [-1, 'Branch above the track'], [0, 'On the main track'], [1, 'Branch below the track'], [2, 'Branch, two levels below']].map(function (o) {
+    var free = !!p.pos, noLine = free && !p.line;
+    h += '<label class="ed-field"><span>Main point</span><select data-f="line">' +
+      (free ? '<option value=""' + (noLine ? ' selected' : '') + '>None: a free point</option>' : '') +
+      options(S.data.lines, noLine ? null : laneOf(p.line).id, function (l) { return (l.label ? l.label + ' · ' : '') + (l.name || ''); }) + '</select>' +
+      (free ? '<small>Sets its colour and where it’s listed. It stays where you placed it.</small>' : '') + '</label>';
+    var track = free ? 'free' : parseInt(p.track, 10) || 0;
+    h += '<label class="ed-field"><span>Position</span><select data-f="track">' + [[-2, 'Branch, two levels above'], [-1, 'Branch above the track'], [0, 'On the main track'], [1, 'Branch below the track'], [2, 'Branch, two levels below'], ['free', 'Placed freely, anywhere on the map']].map(function (o) {
       return '<option value="' + o[0] + '"' + (o[0] === track ? ' selected' : '') + '>' + o[1] + '</option>';
-    }).join('') + '</select><small>Stations next to each other on the same branch share one side track, which leaves and rejoins the main track.</small></label>';
+    }).join('') + '</select><small>' + (free
+      ? 'Select the point in the preview and drag its ✥ handle to move it. Pick a track position to put it back on its main point’s track.'
+      : 'Stations next to each other on the same branch share one side track, which leaves and rejoins the main track.') + '</small></label>';
     var dflt = S.data.settings.display === 'covers' ? 'Cover' : 'Ring';
     h += '<label class="ed-field"><span>Look</span><select data-f="look">' +
       '<option value=""' + (!p.look ? ' selected' : '') + '>Same as the timeline (' + dflt + ')</option>' +
@@ -935,11 +1025,23 @@ window.__startEditor = function () {
     mutate(function (d) {
       var p = d.points.find(function (x) { return x.id === id; });
       if (f === 'circa' || f === 'mapImage') { if (t.checked) p[f] = true; else delete p[f]; }
-      else if (f === 'track') { var n = parseInt(t.value, 10) || 0; if (n) p.track = n; else delete p.track; }
+      else if (f === 'track') {
+        if (t.value === 'free') {   // keep it where it is on the map now, then let it be moved freely
+          p.pos = tl.pointPosition(id) || { x: 200, y: 200 };
+          delete p.track;
+        } else {
+          var n = parseInt(t.value, 10) || 0;
+          delete p.pos;
+          if (!p.line) p.line = d.lines[0].id;   // a track needs a main point
+          if (n) p.track = n; else delete p.track;
+        }
+      }
+      else if (f === 'line') { if (t.value) p.line = t.value; else delete p.line; }
       else if (f === 'look') { if (t.value) p.look = t.value; else delete p.look; }
       else if (f === 'tags') p.tags = t.value.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
       else p[f] = t.value;
     }, 'pt:' + id + ':' + f);
+    if (f === 'track' || f === 'line') { updatePreview(); render(); tl.select(id, { silent: true }); }   // shows the free-point options and handle
   }
 
   function onField(t, committed) {

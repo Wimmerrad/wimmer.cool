@@ -16,35 +16,55 @@ window.TIMELINE_DATA = {
       "id": "mech",
       "label": "MECH",
       "name": "Mechanical age",
-      "color": "orange"
+      "color": "orange",
+      "pos": {
+        "x": 80,
+        "y": 530
+      }
     },
     {
       "id": "theory",
       "label": "IDEA",
       "name": "Ideas & logic",
       "color": "red",
-      "start": "analytical-engine"
+      "start": "analytical-engine",
+      "pos": {
+        "x": 320,
+        "y": 990
+      }
     },
     {
       "id": "elec",
       "label": "ELEC",
       "name": "Electronic era",
       "color": "sky",
-      "start": "turing"
+      "start": "turing",
+      "pos": {
+        "x": 1120,
+        "y": 770
+      }
     },
     {
       "id": "chips",
       "label": "CHIP",
       "name": "Components",
       "color": "gold",
-      "start": "eniac"
+      "start": "eniac",
+      "pos": {
+        "x": 1960,
+        "y": 1062
+      }
     },
     {
       "id": "net",
       "label": "NET",
       "name": "Networks",
       "color": "green",
-      "start": "manchester-baby"
+      "start": "manchester-baby",
+      "pos": {
+        "x": 2170,
+        "y": 1258
+      }
     }
   ],
   "types": [
@@ -95,21 +115,27 @@ window.TIMELINE_DATA = {
       "description": "Joseph Marie Jacquard's attachment read one card per row of the weave. Changing the pattern meant swapping the cards, not rebuilding the machine: an early form of a replaceable program.",
       "images": [
         {
-          "src": "images/punched-card.svg",
-          "caption": "Each row of holes selects which threads are lifted.",
-          "credit": "Illustration"
+          "src": "images/getterrobo-2.webp"
         }
       ],
       "tags": [
         "punched cards"
-      ]
+      ],
+      "mapImage": true,
+      "look": "cover"
     },
     {
       "id": "difference-engine",
       "line": "mech",
       "title": "Difference Engine",
       "date": "1822",
-      "summary": "Charles Babbage proposes a mechanical calculator to compute and print mathematical tables without human error."
+      "summary": "Charles Babbage proposes a mechanical calculator to compute and print mathematical tables without human error.",
+      "images": [
+        {
+          "src": "images/getterrobog-2.jpg"
+        }
+      ],
+      "look": "cover"
     },
     {
       "id": "analytical-engine",
@@ -124,7 +150,14 @@ window.TIMELINE_DATA = {
           "label": "Analytical Engine on Wikipedia",
           "url": "https://en.wikipedia.org/wiki/Analytical_engine"
         }
-      ]
+      ],
+      "images": [
+        {
+          "src": "images/getterrobogo.webp"
+        }
+      ],
+      "mapImage": true,
+      "look": "cover"
     },
     {
       "id": "hollerith",
@@ -136,6 +169,12 @@ window.TIMELINE_DATA = {
       "description": "Herman Hollerith's company later merged into the firm that became IBM in 1924.",
       "tags": [
         "punched cards"
+      ],
+      "look": "cover",
+      "images": [
+        {
+          "src": "images/shingetterobo.webp"
+        }
       ]
     },
     {
@@ -312,6 +351,12 @@ window.TIMELINE_DATA = {
           "url": "https://www.w3.org/History/1989/proposal.html"
         }
       ]
+    },
+    {
+      "id": "new-point",
+      "title": "New point",
+      "date": "1891",
+      "line": "mech"
     }
   ],
   "connections": [

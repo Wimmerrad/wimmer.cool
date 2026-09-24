@@ -204,6 +204,12 @@ html:has(.ctl-full), body:has(.ctl-full) { height: 100%; overflow: hidden; overs
 .ctl-link.is-selected .ctl-link-line { stroke-width: 4.5; }
 .ctl-bend { fill: var(--ctl-bg); stroke: var(--ctl-hi); stroke-width: 3; cursor: move; }
 .ctl-bend:hover { fill: var(--ctl-hi); }
+/* editor: move handle next to a selected free point */
+.ctl-move { cursor: move; }
+.ctl-move circle { fill: var(--ctl-surface); stroke: var(--ctl-hi); stroke-width: 2.5; }
+.ctl-move path { fill: none; stroke: var(--ctl-ink); stroke-width: 1.6; stroke-linecap: round; }
+.ctl-move:hover circle { fill: var(--ctl-hi); }
+.ctl-move:hover path { stroke: #10131c; }
 .ctl-editable .ctl-link:hover .ctl-link-line { stroke-width: 4.5; }
 .ctl-editable .ctl-legend [data-type] { cursor: pointer; border-radius: 4px; padding: 1px 4px; margin: -1px -4px; }
 .ctl-editable .ctl-legend [data-type]:hover { background: var(--ctl-band); color: var(--ctl-ink); }

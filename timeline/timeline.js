@@ -154,7 +154,11 @@
     (Array.isArray(src.points) ? src.points : []).forEach(function (p, idx) {
       if (!p || !p.id || data.byId.has(p.id)) return;
       var q = Object.assign({}, p);
-      q._line = data.lineById.has(p.line || p.lane) ? (p.line || p.lane) : data.lines[0].id;
+      // a point with its own position ("pos") is a free point: drawn where it was placed, not on a track;
+      // it may still belong to a main point (for colour and grouping), or to none
+      var placed = !!(p.pos && isFinite(p.pos.x) && isFinite(p.pos.y));
+      q._free = placed;
+      q._line = data.lineById.has(p.line || p.lane) ? (p.line || p.lane) : (placed ? null : data.lines[0].id);
       q._start = parseDate(p.date);
       var end = parseDate(p.end);
       q._end = end && q._start && dateValue(end) >= dateValue(q._start) ? end : null;
@@ -205,6 +209,8 @@
     return { covers: true, CW: cw, CH: ch, TRACK: ch + 170, ABOVE: ch / 2 + 34, BELOW: ch / 2 + 118, MINSP: cw + 70 };
   }
   var RING_GEOM = { covers: false, TRACK: TRACK, ABOVE: ABOVE, BELOW: BELOW, MINSP: 140 };
+  // stands in for a main point when a free point belongs to none
+  var FREE_LINE = { id: '', label: '', name: 'Free points', color: '#c4c9ea', _color: '#c4c9ea' };
 
   // Each point picks its own look: "cover", "ring", or (unset) the timeline's default look.
   function isCover(p, s) { return p.look === 'cover' || (p.look !== 'ring' && s.display === 'covers'); }
@@ -220,7 +226,7 @@
     var top = titleLines.length ? 40 + titleLines.length * 70 + (s.subtitle ? 44 : 0) : 20;
     var pos = new Map(), lines = [], y = top, right = 0, bottom = 0;
     data.lines.forEach(function (line) {
-      var pts = data.points.filter(function (p) { return p._line === line.id; });
+      var pts = data.points.filter(function (p) { return p._line === line.id && !p._free; });
       var startPt = line.start && pos.get(line.start);
       // a line with any covers on it gets the taller rows covers need
       var LG = pts.some(function (p) { return p._cover; }) ? CG : RING_GEOM;
@@ -242,6 +248,14 @@
       right = Math.max(right, lastX + SP);
     });
     y = Math.max(y, bottom);
+    // free points sit exactly where they were placed
+    data.points.forEach(function (p) {
+      if (!p._free) return;
+      var px = +p.pos.x, py = +p.pos.y;
+      pos.set(p.id, { x: px, y: py, y0: py, line: data.lineById.get(p._line) || FREE_LINE, p: p, free: true });
+      right = Math.max(right, px + SP);
+      y = Math.max(y, py + (p._cover ? CG.BELOW : RING_GEOM.BELOW) + GAP);
+    });
     // Branches: consecutive stations on the same non-zero track leave the main line
     // at the station before them and rejoin at the next main-line station.
     lines.forEach(function (L) {
@@ -425,6 +439,7 @@
     // Each line's track, circle and stations share one group, so the editor can drag a whole line at once.
     var per = new Map();
     L.lines.forEach(function (R) { per.set(R.line.id, { tracks: [], term: '', st: [] }); });
+    per.set('\u0000free', { tracks: [], term: '', st: [] });   // free points get their own group, so moving a main point leaves them where they are
     // Where a line begins from a station on another line
     L.lines.forEach(function (R) {
       if (!R.start) return;
@@ -445,7 +460,7 @@
     // Links between stations on different lines
     data.connections.forEach(function (c) {
       var a = L.pos.get(c.from), b = L.pos.get(c.to);
-      if (!a || !b || a.line === b.line) return;
+      if (!a || !b || (a.line === b.line && !a.free && !b.free)) return;   // same track: the track already joins them
       var t = data.typeById.get(c._type), geo = linkGeom(c, a, b, s, G);
       out.push('<g class="ctl-link' + (geo.straight ? ' is-straight' : '') + '" data-c="' + esc(c.id) + '" data-from="' + esc(c.from) + '" data-to="' + esc(c.to) + '">' +
         linkInner(c, t, geo, s, a, b) + '</g>');
@@ -462,7 +477,7 @@
     });
     // Stations
     L.pos.forEach(function (P, id) {
-      var p = P.p, x = P.x, y = P.y, c = P.line._color, h = '', st = per.get(P.line.id).st;
+      var p = P.p, x = P.x, y = P.y, c = P.line._color, h = '', st = per.get(P.free ? '\u0000free' : P.line.id).st;
       if (p._cover) { st.push(drawCover(P, id, G, img)); return; }
       var pic = p.mapImage && p.images[0];
       if (pic) {
@@ -479,7 +494,8 @@
         '<circle class="ctl-ring" cx="' + x + '" cy="' + y + '" r="' + R_ST + '" stroke="' + c + '"/></g>');
     });
     per.forEach(function (g, id) {
-      out.push('<g class="ctl-lineg" data-line="' + esc(id) + '">' + g.tracks.join('') + g.term + g.st.join('') + '</g>');
+      if (id === '\u0000free') out.push('<g class="ctl-freeg">' + g.st.join('') + '</g>');
+      else out.push('<g class="ctl-lineg" data-line="' + esc(id) + '">' + g.tracks.join('') + g.term + g.st.join('') + '</g>');
     });
     out.push('<path class="ctl-dragline" d=""/>');   // editor: the line that follows the pointer while connecting
     return out.join('');
@@ -606,7 +622,7 @@
         if (self.opts.onLinkClick) self.opts.onLinkClick(lk.dataset.c);
         return;
       }
-      if (e.target.closest('.ctl-bend')) return;
+      if (e.target.closest('.ctl-bend, .ctl-move')) return;
       // Empty space: unselect
       self._selectLine(null);
       self._selectLink(null);
@@ -770,7 +786,8 @@
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { self._dateBacks(); self._placePlayer(true); });  // widths change once the font arrives
     this.emptyEl.hidden = this.data.points.length > 0;
     var used = new Set(this.data.connections.filter(function (c) {
-      return self.data.byId.get(c.from)._line !== self.data.byId.get(c.to)._line;
+      var a = self.data.byId.get(c.from), b = self.data.byId.get(c.to);
+      return a._line !== b._line || a._free || b._free;   // the kinds actually drawn on the map
     }).map(function (c) { return c._type; }));
     this.legend.innerHTML = this.data.types.filter(function (t) { return used.has(t.id); }).map(function (t) {
       return '<span data-type="' + esc(t.id) + '" title="' + esc(t.description || '') + '">' + kindSample(t) + esc(t.name) + '</span>';
@@ -861,6 +878,7 @@
     this._selectLine(this.opts.editable ? this.selectedLine : null);
     if (this.selectedLink && !d.connections.some(function (c) { return c.id === self.selectedLink; })) this.selectedLink = null;
     this._selectLink(this.opts.editable ? this.selectedLink : null);
+    this._drawMoveHandle();
   };
 
   // ---------- view ----------
@@ -940,6 +958,11 @@
     setTimeout(function () { self._pointerFocus = false; }, 0);
     // Editor only: a line's circle drags the whole line; a station drags out a new connection.
     if (this.opts.editable && this.viewMode === 'map' && !this.pointers.size) {
+      if (e.target.closest('.ctl-move') && this.selected) {   // the move handle of a selected free point
+        this.edit = { kind: 'move', id: this.selected, pid: e.pointerId, x: e.clientX, y: e.clientY, moved: false };
+        this._dragged = false;
+        return;
+      }
       var bend = e.target.closest('.ctl-bend'), BT = bend && this._bendTarget();
       if (BT) {   // dragging a corner of the selected straight link or drop line
         this.edit = { kind: 'bend', tkind: BT.kind, id: BT.id, idx: +bend.getAttribute('data-i'), pid: e.pointerId, x: e.clientX, y: e.clientY, moved: false,
@@ -1260,6 +1283,35 @@
     this._refreshHandles();
   };
 
+  P._stationEl = function (id) {
+    var found = null;
+    this.world.querySelectorAll('.ctl-st').forEach(function (g) { if (g.dataset.id === id) found = g; });
+    return found;
+  };
+
+  // Editor: a selected free point gets a small handle (top left) to drag it anywhere.
+  P._drawMoveHandle = function () {
+    var old = this.world.querySelector('.ctl-move');
+    if (old) old.parentNode.removeChild(old);
+    var P0 = this.opts.editable && this.selected && this.L && this.L.pos.get(this.selected);
+    if (!P0 || !P0.free) return;
+    var off = P0.p._cover ? [-this.L.G.CW / 2 - 14, -this.L.G.CH / 2 - 14] : [-26, -26];
+    var base = 'translate(' + r1(P0.x + off[0]) + ' ' + r1(P0.y + off[1]) + ')';
+    var g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('class', 'ctl-move');
+    g.setAttribute('data-base', base);
+    g.setAttribute('transform', base);
+    g.innerHTML = '<title>Drag to move this point</title><circle r="11"/>' +
+      '<path d="M-6 0H6M0-6V6M-6 0l2.5-2.5M-6 0l2.5 2.5M6 0l-2.5-2.5M6 0l-2.5 2.5M0-6l-2.5 2.5M0-6l2.5 2.5M0 6l-2.5-2.5M0 6l2.5-2.5"/>';
+    this.world.appendChild(g);
+  };
+
+  // Where a point is drawn now (the editor uses it when a point is switched to "placed freely").
+  P.pointPosition = function (id) {
+    var q = this.L && this.L.pos.get(id);
+    return q ? { x: Math.round(q.x), y: Math.round(q.y) } : null;
+  };
+
   // ---------- editor dragging ----------
   P._lineGroup = function (id) {
     var found = null;
@@ -1277,12 +1329,18 @@
       E.moved = true;
       this._dragged = true;
       try { this.svg.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
-      this.svg.classList.add(E.kind === 'line' ? 'is-moving-line' : 'is-linking');
+      this.svg.classList.add(E.kind === 'line' || E.kind === 'move' ? 'is-moving-line' : 'is-linking');
       this.tip.hidden = true;
     }
     if (E.kind === 'line') {
       var g = this._lineGroup(E.id);
       if (g) g.setAttribute('transform', 'translate(' + r1(dx / s) + ' ' + r1(dy / s) + ')');
+      return;
+    }
+    if (E.kind === 'move') {   // dragging a free point by its handle
+      var tr = 'translate(' + r1(dx / s) + ' ' + r1(dy / s) + ')', stg = this._stationEl(E.id), mh = this.world.querySelector('.ctl-move');
+      if (stg) stg.setAttribute('transform', tr);
+      if (mh) mh.setAttribute('transform', mh.getAttribute('data-base') + ' ' + tr);
       return;
     }
     if (E.kind === 'bend') {
@@ -1320,6 +1378,15 @@
     setTimeout(function () { self._dragged = false; }, 0);
     if (!E.moved) return;
     var cancelled = e.type === 'pointercancel';
+    if (E.kind === 'move') {
+      var PM = this.L.pos.get(E.id);
+      if (cancelled || !PM || !this.opts.onMovePoint) { this.refresh(); return; }
+      this.opts.onMovePoint(E.id, {
+        x: Math.max(20, Math.round((PM.x + (e.clientX - E.x) / s) / 10) * 10),
+        y: Math.max(20, Math.round((PM.y + (e.clientY - E.y) / s) / 10) * 10)
+      });
+      return;
+    }
     if (E.kind === 'bend') {
       var save = E.tkind === 'link' ? this.opts.onMoveBends : this.opts.onMoveStartBends;
       if (!cancelled && save) save(E.id, E.bends);
@@ -1337,6 +1404,10 @@
     } else if (!cancelled) {
       var t = this._stationAt(e);
       if (t && t.dataset.id !== E.id && this.opts.onConnect) this.opts.onConnect(E.id, t.dataset.id);
+      else if (!t && this.opts.onDropEmpty) {   // dropped on empty space: the editor offers to make a new point there
+        var w = this._toWorld(e);
+        this.opts.onDropEmpty(E.id, { x: Math.round(w[0] / 10) * 10, y: Math.round(w[1] / 10) * 10 }, { x: e.clientX, y: e.clientY });
+      }
     }
   };
 
@@ -1409,9 +1480,9 @@
   P._renderPanel = function () {
     var p = this.data.byId.get(this.selected);
     if (!p) { this._closePanel(); return; }
-    var d = this.data, self = this, line = d.lineById.get(p._line), c = line._color;
+    var d = this.data, self = this, line = d.lineById.get(p._line) || FREE_LINE, c = line._color;
     this.panel.style.setProperty('--c', c);
-    this.panelLine.innerHTML = '<span class="ctl-dot"></span>' + esc((line.label ? line.label + ' · ' : '') + (line.name || ''));
+    this.panelLine.innerHTML = '<span class="ctl-dot"></span>' + esc(line === FREE_LINE ? 'Free point' : (line.label ? line.label + ' · ' : '') + (line.name || ''));
     var h = '';
     var date = pointDate(p, true);
     if (date) h += '<div class="ctl-bigdate">' + esc(date) + '</div>';
@@ -1525,8 +1596,8 @@
   // ---------- list view ----------
   P._renderList = function () {
     var self = this, d = this.data, q = this.q, h = '';
-    d.lines.forEach(function (line) {
-      var pts = d.points.filter(function (p) { return p._line === line.id && (!q || matches(p, line, q)); });
+    d.lines.concat([FREE_LINE]).forEach(function (line) {   // free points that belong to no main point come last
+      var pts = d.points.filter(function (p) { return (line === FREE_LINE ? p._line == null : p._line === line.id) && (!q || matches(p, line, q)); });
       if (!pts.length) return;
       h += '<section class="ctl-lgroup" style="--c:' + line._color + ';--on:' + onColor(line.color) + '">' +
         '<div class="ctl-lhead"><b>' + esc(line.label) + '</b><span>' + esc(line.name || '') + '</span></div>' +
