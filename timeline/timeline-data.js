@@ -28,7 +28,7 @@ window.TIMELINE_DATA = {
       "id": "theory",
       "label": "",
       "name": "Brain's Base OVA Trilogy",
-      "color": "red",
+      "color": "green",
       "pos": {
         "x": 1010,
         "y": 1010
@@ -55,7 +55,7 @@ window.TIMELINE_DATA = {
       "inverse": "Grew out of",
       "color": "white",
       "style": "dashed",
-      "directed": true,
+      "directed": false,
       "description": "One thing directly built on the other"
     },
     {
@@ -189,8 +189,8 @@ window.TIMELINE_DATA = {
       "title": "Getter Robo Saga",
       "date": "2002",
       "pos": {
-        "x": 350,
-        "y": 300
+        "x": 790,
+        "y": 250
       },
       "look": "cover",
       "images": [
@@ -392,6 +392,46 @@ window.TIMELINE_DATA = {
       "toEnd": [
         0,
         160
+      ]
+    },
+    {
+      "id": "c11",
+      "from": "difference-engine",
+      "to": "getter-robo-saga",
+      "type": "led-to",
+      "toEnd": [
+        0,
+        159
+      ]
+    },
+    {
+      "id": "c12",
+      "from": "analytical-engine",
+      "to": "getter-robo-saga",
+      "type": "led-to",
+      "toEnd": [
+        0,
+        155
+      ]
+    },
+    {
+      "id": "c13",
+      "from": "hollerith",
+      "to": "getter-robo-saga",
+      "type": "led-to",
+      "toEnd": [
+        0,
+        159
+      ]
+    },
+    {
+      "id": "c14",
+      "from": "getter-robo-arc",
+      "to": "getter-robo-saga",
+      "type": "led-to",
+      "toEnd": [
+        0,
+        154
       ]
     }
   ],
