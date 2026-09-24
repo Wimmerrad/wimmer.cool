@@ -126,7 +126,7 @@
   function normalize(raw) {
     var src = raw && typeof raw === 'object' ? raw : {};
     var data = {
-      settings: Object.assign({ title: '', subtitle: '', view: 'map', showTitle: true, spacing: 210, theme: 'night', display: 'stations', coverWidth: 150 }, src.settings || {}),
+      settings: Object.assign({ title: '', subtitle: '', view: 'map', showTitle: true, spacing: 210, theme: 'night', display: 'stations', coverWidth: 150, linkShape: 'curve' }, src.settings || {}),
       lines: [], types: [], points: [], connections: []
     };
     var rawLines = Array.isArray(src.lines) ? src.lines : Array.isArray(src.lanes) ? src.lanes : [];
@@ -303,6 +303,75 @@
       '<rect class="ctl-hit" x="' + r1(x - hw - 4) + '" y="' + r1(y - hh - 4) + '" width="' + (G.CW + 8) + '" height="' + (G.CH + 8) + '" rx="6"/>' + h + '</g>';   // click zone: the cover, plus its own text
   }
 
+  // The area a cover and the text under it take up, around its centre
+  function coverBoxOf(P, G) { return { l: P.x - G.CW / 2 - 6, r: P.x + G.CW / 2 + 6, t: P.y - G.CH / 2 - 6, b: P.y + G.CH / 2 + 84 }; }
+  function offTowards(p, q, d) { var l = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1; return [p[0] + (q[0] - p[0]) * d / l, p[1] + (q[1] - p[1]) * d / l]; }
+
+  // Automatic corners for a straight link: down-across-down, or across-down-across, meeting halfway.
+  function autoBends(a, b) {
+    var dx = b.x - a.x, dy = b.y - a.y;
+    if (Math.abs(dy) > Math.abs(dx) * 0.35) { var my = Math.round((a.y + dy / 2) / 10) * 10; return [[a.x, my], [b.x, my]]; }
+    var mx = Math.round((a.x + dx / 2) / 10) * 10;
+    return [[mx, a.y], [mx, b.y]];
+  }
+  function savedBends(c) {
+    return Array.isArray(c.bends) ? c.bends.filter(function (q) { return q && isFinite(q[0]) && isFinite(q[1]); }).map(function (q) { return [+q[0], +q[1]]; }) : null;
+  }
+
+  // Shape of one link. "curve": a smooth S-curve. "straight": straight segments through its corners.
+  // bends overrides the corners (used while dragging one in the editor).
+  function linkGeom(c, a, b, s, G, bends) {
+    var straight = (c.route || s.linkShape) === 'straight';
+    // each end leaves from the edge of its cover (or the text under it), or from just outside its ring
+    var endA = function (toward) { return a.p._cover ? boxEdge([a.x, a.y], toward, coverBoxOf(a, G)) : offTowards([a.x, a.y], toward, R_ST + 5); };
+    var endB = function (toward) { return b.p._cover ? offTowards(boxEdge([b.x, b.y], toward, coverBoxOf(b, G)), toward, 4) : offTowards([b.x, b.y], toward, R_ST + 5); };
+    if (!straight) {
+      var dy = b.y - a.y, dx = b.x - a.x, vertical = Math.abs(dy) > Math.abs(dx) * 0.35;
+      var c1 = vertical ? [a.x, a.y + dy * 0.5] : [a.x + dx * 0.5, a.y], c2 = vertical ? [b.x, b.y - dy * 0.5] : [b.x - dx * 0.5, b.y];
+      var A = endA(c1), B = endB(c2);
+      return {
+        straight: false, A: A, B: B, tail: c2,
+        d: 'M' + r1(A[0]) + ',' + r1(A[1]) + 'C' + r1(c1[0]) + ',' + r1(c1[1]) + ' ' + r1(c2[0]) + ',' + r1(c2[1]) + ' ' + r1(B[0]) + ',' + r1(B[1]),
+        mid: [(A[0] + 3 * c1[0] + 3 * c2[0] + B[0]) / 8, (A[1] + 3 * c1[1] + 3 * c2[1] + B[1]) / 8]
+      };
+    }
+    var corners = bends || savedBends(c) || autoBends(a, b);
+    var first = corners.length ? corners[0] : [b.x, b.y], last = corners.length ? corners[corners.length - 1] : [a.x, a.y];
+    var pts = [endA(first)].concat(corners, [endB(last)]);
+    // the note sits halfway along the whole path
+    var total = 0, lens = [];
+    for (var i = 1; i < pts.length; i++) { var l = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); lens.push(l); total += l; }
+    var half = total / 2, mid = pts[0];
+    for (var j = 0; j < lens.length; j++) {
+      if (half <= lens[j]) { var k = lens[j] ? half / lens[j] : 0; mid = [pts[j][0] + (pts[j + 1][0] - pts[j][0]) * k, pts[j][1] + (pts[j + 1][1] - pts[j][1]) * k]; break; }
+      half -= lens[j];
+    }
+    return {
+      straight: true, corners: corners, pts: pts, A: pts[0], B: pts[pts.length - 1], tail: last, mid: mid,
+      d: 'M' + pts.map(function (q) { return r1(q[0]) + ',' + r1(q[1]); }).join('L')
+    };
+  }
+
+  // Inside of one link's group: wide invisible click area, the visible line, the arrow and the note.
+  function linkInner(c, t, geo, s, a, b) {
+    var col = hex(t.color), dash = DASH[t.style || 'dashed'], note = '';
+    if (c.note && (s.display === 'covers' || a.p._cover || b.p._cover)) {
+      // write the note along the link, like the notes on a hand-made chart
+      var nl = wrap(c.note, 26, 3);
+      note = textLines(nl, geo.mid[0], geo.mid[1] + (nl.length - 1) * 7.5, 15, 'class="ctl-link-note" text-anchor="middle" font-size="11.5" fill="' + col + '"');
+    }
+    return '<path class="ctl-link-hit" d="' + geo.d + '"/>' +
+      '<path class="ctl-link-line" d="' + geo.d + '" fill="none" stroke="' + col + '" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="' + (geo.straight ? 'miter' : 'round') + '"' + (dash ? ' stroke-dasharray="' + dash + '"' : '') + '/>' +
+      (t.directed === false ? '' : '<path class="ctl-link-arrow" fill="' + col + '" d="' + arrowPath(geo.B, geo.tail) + '"/>') + note;
+  }
+
+  // Distance from point p to the segment a-b.
+  function segDist(p, a, b) {
+    var dx = b[0] - a[0], dy = b[1] - a[1], l2 = dx * dx + dy * dy;
+    var k = l2 ? clamp(((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l2, 0, 1) : 0;
+    return Math.hypot(p[0] - (a[0] + dx * k), p[1] - (a[1] + dy * k));
+  }
+
   // Where a straight line from the centre of box b (towards q) leaves the box.
   function boxEdge(c, q, b) {
     var dx = q[0] - c[0], dy = q[1] - c[1];
@@ -315,7 +384,6 @@
   function drawMap(data, L, img) {
     var s = data.settings, SP = L.SP, G = L.G, out = [];   // G: cover sizes, for the points shown as covers
     // The area a cover and the text under it take up, around its centre
-    var coverBox = function (P) { return { l: P.x - G.CW / 2 - 6, r: P.x + G.CW / 2 + 6, t: P.y - G.CH / 2 - 6, b: P.y + G.CH / 2 + 84 }; };
     // Title
     if (L.titleLines.length) {
       out.push(textLines(L.titleLines, X0 - 36, 30 + L.titleLines.length * 70 - 12, 70, 'class="ctl-maptitle" font-size="68"'));
@@ -355,25 +423,9 @@
     data.connections.forEach(function (c) {
       var a = L.pos.get(c.from), b = L.pos.get(c.to);
       if (!a || !b || a.line === b.line) return;
-      var t = data.typeById.get(c._type), col = hex(t.color), dy = b.y - a.y, dx = b.x - a.x;
-      var vertical = Math.abs(dy) > Math.abs(dx) * 0.35;
-      var c1 = vertical ? [a.x, a.y + dy * 0.5] : [a.x + dx * 0.5, a.y], c2 = vertical ? [b.x, b.y - dy * 0.5] : [b.x - dx * 0.5, b.y];
-      var off = function (p, q, d) { var l = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1; return [p[0] + (q[0] - p[0]) * d / l, p[1] + (q[1] - p[1]) * d / l]; };
-      // each end leaves from the edge of its cover (or the text under it), or from just outside its ring
-      var A = a.p._cover ? boxEdge([a.x, a.y], c1, coverBox(a)) : off([a.x, a.y], c1, R_ST + 5);
-      var B = b.p._cover ? off(boxEdge([b.x, b.y], c2, coverBox(b)), c2, 4) : off([b.x, b.y], c2, R_ST + 5);
-      var d = 'M' + r1(A[0]) + ',' + r1(A[1]) + 'C' + r1(c1[0]) + ',' + r1(c1[1]) + ' ' + r1(c2[0]) + ',' + r1(c2[1]) + ' ' + r1(B[0]) + ',' + r1(B[1]);
-      var dash = DASH[t.style || 'dashed'], note = '';
-      if (c.note && (s.display === 'covers' || a.p._cover || b.p._cover)) {
-        // write the note along the link, like the notes on a hand-made chart
-        var m = [(A[0] + 3 * c1[0] + 3 * c2[0] + B[0]) / 8, (A[1] + 3 * c1[1] + 3 * c2[1] + B[1]) / 8];
-        var nl = wrap(c.note, 26, 3);
-        note = textLines(nl, m[0], m[1] + (nl.length - 1) * 7.5, 15, 'class="ctl-link-note" text-anchor="middle" font-size="11.5" fill="' + col + '"');
-      }
-      out.push('<g class="ctl-link" data-c="' + esc(c.id) + '" data-from="' + esc(c.from) + '" data-to="' + esc(c.to) + '">' +
-        '<path class="ctl-link-hit" d="' + d + '"/>' +
-        '<path class="ctl-link-line" d="' + d + '" fill="none" stroke="' + col + '" stroke-width="2.6" stroke-linecap="round"' + (dash ? ' stroke-dasharray="' + dash + '"' : '') + '/>' +
-        (t.directed === false ? '' : '<path class="ctl-link-arrow" fill="' + col + '" d="' + arrowPath(B, c2) + '"/>') + note + '</g>');
+      var t = data.typeById.get(c._type), geo = linkGeom(c, a, b, s, G);
+      out.push('<g class="ctl-link' + (geo.straight ? ' is-straight' : '') + '" data-c="' + esc(c.id) + '" data-from="' + esc(c.from) + '" data-to="' + esc(c.to) + '">' +
+        linkInner(c, t, geo, s, a, b) + '</g>');
     });
     // Line terminals
     L.lines.forEach(function (R) {
@@ -493,7 +545,7 @@
     this.svg.addEventListener('click', function (e) {
       var g = e.target.closest('.ctl-st');
       if (self._dragged) return;
-      if (g) { self._selectLine(null); self.select(g.dataset.id === self.selected && self.opts.panel ? null : g.dataset.id, { pan: false }); return; }
+      if (g) { self._selectLine(null); self._selectLink(null); self.select(g.dataset.id === self.selected && self.opts.panel ? null : g.dataset.id, { pan: false }); return; }
       var ed = self.opts.editable;
       // Editor only: clicking a line's circle or track selects the line (so its circle can be dragged) and opens its settings
       var lg = e.target.closest('.ctl-term, .ctl-track, .ctl-startg');
@@ -501,21 +553,48 @@
         if (!ed) return;
         var lineId = lg.closest('[data-line]').getAttribute('data-line');
         if (self.selected) self.select(null, { silent: true });
+        self._selectLink(null);
         self._selectLine(lineId);
         if (self.opts.onLineClick) self.opts.onLineClick(lineId);
         return;
       }
       // Editor only: clicking a dashed link opens that connection's settings
       var lk = e.target.closest('.ctl-link');
-      if (lk) { if (ed && self.opts.onLinkClick) self.opts.onLinkClick(lk.dataset.c); return; }
+      if (lk) {
+        if (!ed) return;
+        self._selectLine(null);
+        if (self.selected) self.select(null, { silent: true });
+        self._selectLink(lk.dataset.c);   // a straight link now shows handles on its corners
+        if (self.opts.onLinkClick) self.opts.onLinkClick(lk.dataset.c);
+        return;
+      }
+      if (e.target.closest('.ctl-bend')) return;
       // Empty space: unselect
       self._selectLine(null);
+      self._selectLink(null);
       if (self.selected) self.select(null);
     });
-    // Editor only: double-click a line's circle to add a point to that line
+    // Editor only: double-click a line's circle to add a point to that line;
+    // on a selected straight link, double-click a corner to remove it, or the link itself to add a corner there.
     this.svg.addEventListener('dblclick', function (e) {
+      if (!self.opts.editable) return;
       var t = e.target.closest('.ctl-term');
-      if (t && self.opts.editable && self.opts.onAddToLine) { e.preventDefault(); self.opts.onAddToLine(t.getAttribute('data-line')); }
+      if (t && self.opts.onAddToLine) { e.preventDefault(); self.opts.onAddToLine(t.getAttribute('data-line')); return; }
+      var bend = e.target.closest('.ctl-bend'), parts = self.selectedLink && self._linkParts(self.selectedLink);
+      if (!parts || !parts.geo.straight || !self.opts.onMoveBends) return;
+      var bends = parts.geo.corners.map(function (q) { return [q[0], q[1]]; });
+      if (bend) {
+        bends.splice(+bend.getAttribute('data-i'), 1);
+      } else if (e.target.closest('.ctl-link.is-selected')) {
+        var w = self._toWorld(e), pts = parts.geo.pts, best = 0, bestD = Infinity;
+        for (var i = 0; i < pts.length - 1; i++) {   // the segment nearest the double-click
+          var dd = segDist(w, pts[i], pts[i + 1]);
+          if (dd < bestD) { bestD = dd; best = i; }
+        }
+        bends.splice(best, 0, [Math.round(w[0] / 10) * 10, Math.round(w[1] / 10) * 10]);
+      } else return;
+      e.preventDefault();
+      self.opts.onMoveBends(self.selectedLink, bends);
     });
     this.svg.addEventListener('keydown', function (e) {
       var g = e.target.closest && e.target.closest('.ctl-st');
@@ -734,6 +813,8 @@
     });
     if (this.selectedLine && !d.lineById.has(this.selectedLine)) this.selectedLine = null;
     this._selectLine(this.opts.editable ? this.selectedLine : null);
+    if (this.selectedLink && !d.connections.some(function (c) { return c.id === self.selectedLink; })) this.selectedLink = null;
+    this._selectLink(this.opts.editable ? this.selectedLink : null);
   };
 
   // ---------- view ----------
@@ -812,6 +893,13 @@
     setTimeout(function () { self._pointerFocus = false; }, 0);
     // Editor only: a line's circle drags the whole line; a station drags out a new connection.
     if (this.opts.editable && this.viewMode === 'map' && !this.pointers.size) {
+      var bend = e.target.closest('.ctl-bend'), bp = bend && this._linkParts(this.selectedLink);
+      if (bp) {   // dragging a corner of the selected straight link
+        this.edit = { kind: 'bend', id: this.selectedLink, idx: +bend.getAttribute('data-i'), pid: e.pointerId, x: e.clientX, y: e.clientY, moved: false,
+          bends: bp.geo.corners.map(function (q) { return [q[0], q[1]]; }) };
+        this._dragged = false;
+        return;
+      }
       var term = e.target.closest('.ctl-term'), st = !term && e.target.closest('.ctl-st');
       if (st && st.dataset.id !== this.selected) st = null;   // connect only from the selected station; others pan the map
       if (term && term.getAttribute('data-line') !== this.selectedLine) term = null;   // move only a selected line; others pan the map
@@ -864,6 +952,41 @@
     return o;
   };
 
+  // Pointer position in map coordinates.
+  P._toWorld = function (e) {
+    var r = this.svg.getBoundingClientRect();
+    return [(e.clientX - r.left - this.v.tx) / this.v.s, (e.clientY - r.top - this.v.ty) / this.v.s];
+  };
+
+  // Everything needed to redraw one link.
+  P._linkParts = function (cid, bends) {
+    var d = this.data, c = d.connections.find(function (x) { return x.id === cid; });
+    if (!c || !this.L) return null;
+    var a = this.L.pos.get(c.from), b = this.L.pos.get(c.to);
+    if (!a || !b || a.line === b.line) return null;
+    return { c: c, a: a, b: b, t: d.typeById.get(c._type), geo: linkGeom(c, a, b, d.settings, this.L.G, bends) };
+  };
+
+  // Editor: select a link; a straight one shows a draggable handle on each corner.
+  P._selectLink = function (cid) {
+    this.selectedLink = cid || null;
+    var sel = this.selectedLink;
+    this.world.querySelectorAll('.ctl-link').forEach(function (g) { g.classList.toggle('is-selected', g.dataset.c === sel); });
+    var parts = sel && this.opts.editable ? this._linkParts(sel) : null;
+    this._drawHandles(parts && parts.geo.straight ? parts.geo.corners : null);
+  };
+  P._drawHandles = function (corners) {
+    var old = this.world.querySelector('.ctl-bends');
+    if (old) old.parentNode.removeChild(old);
+    if (!corners) return;
+    var g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('class', 'ctl-bends');
+    g.innerHTML = corners.map(function (q, i) {
+      return '<circle class="ctl-bend" data-i="' + i + '" cx="' + r1(q[0]) + '" cy="' + r1(q[1]) + '" r="8"><title>Drag to move this corner · double-click to remove it</title></circle>';
+    }).join('');
+    this.world.appendChild(g);
+  };
+
   // Editor: the selected line's circle gets a highlight and can be dragged.
   P._selectLine = function (id) {
     this.selectedLine = id || null;
@@ -896,6 +1019,25 @@
       if (g) g.setAttribute('transform', 'translate(' + r1(dx / s) + ' ' + r1(dy / s) + ')');
       return;
     }
+    if (E.kind === 'bend') {
+      var w = this._toWorld(e), wx = Math.round(w[0] / 10) * 10, wy = Math.round(w[1] / 10) * 10;
+      var parts = this._linkParts(E.id, E.bends);
+      if (!parts) return;
+      // line up with the neighbouring corners (or the stations at the ends) so right angles are easy
+      var pts = parts.geo.pts, prev = pts[E.idx], next = pts[E.idx + 2], snap = 12 / s;
+      [prev, next].forEach(function (q) {
+        if (!q) return;
+        if (Math.abs(w[0] - q[0]) < snap) wx = q[0];
+        if (Math.abs(w[1] - q[1]) < snap) wy = q[1];
+      });
+      E.bends[E.idx] = [wx, wy];
+      parts = this._linkParts(E.id, E.bends);
+      var lg = null;
+      this.world.querySelectorAll('.ctl-link').forEach(function (x) { if (x.dataset.c === E.id) lg = x; });
+      if (lg) lg.innerHTML = linkInner(parts.c, parts.t, parts.geo, this.data.settings, parts.a, parts.b);
+      this._drawHandles(parts.geo.corners);
+      return;
+    }
     var P0 = this.L.pos.get(E.id), r = this.svg.getBoundingClientRect();
     var wx = (e.clientX - r.left - this.v.tx) / s, wy = (e.clientY - r.top - this.v.ty) / s;
     var dl = this.world.querySelector('.ctl-dragline');
@@ -914,6 +1056,11 @@
     setTimeout(function () { self._dragged = false; }, 0);
     if (!E.moved) return;
     var cancelled = e.type === 'pointercancel';
+    if (E.kind === 'bend') {
+      if (!cancelled && this.opts.onMoveBends) this.opts.onMoveBends(E.id, E.bends);
+      else this.refresh();
+      return;
+    }
     if (E.kind === 'line') {
       var R = this.L.lines.find(function (x) { return x.line.id === E.id; });
       var g = this._lineGroup(E.id);

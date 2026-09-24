@@ -338,6 +338,17 @@ window.__startEditor = function () {
     },
     // click a dashed link: open that connection; click a kind in the legend: open that kind
     onLinkClick: function (cid) { openCard('connections', 'data-ccard', cid); },
+    // corners of a straight link were dragged, added or removed
+    onMoveBends: function (cid, bends) {
+      mutate(function (d) {
+        var c = d.connections.find(function (x) { return x.id === cid; });
+        if (!c) return;
+        c.bends = bends.map(function (q) { return [Math.round(q[0]), Math.round(q[1])]; });
+        if ((c.route || d.settings.linkShape) !== 'straight') c.route = 'straight';
+      });
+      updatePreview();
+      if (S.tab === 'connections') render();
+    },
     onKindClick: function (tid) { openCard('types', 'data-tcard', tid); },
     editable: true,
     // double-click a line's circle: new point at the end of that line
@@ -577,6 +588,11 @@ window.__startEditor = function () {
         '<div class="ed-card-row"><select data-cf="to" data-cid="' + esc(c.id) + '" aria-label="To">' + pointOptions(c.to) + '</select></div>' +
         '<div class="ed-card-row"><input class="ed-input" data-cf="note" data-cid="' + esc(c.id) + '" value="' + esc(c.note || '') + '" placeholder="Note (optional)" aria-label="Note">' +
         '<button type="button" class="ed-btn small icon danger" data-a="conn-del" data-cid="' + esc(c.id) + '" aria-label="Remove connection">✕</button></div>' +
+        '<div class="ed-card-row"><select data-cf="route" data-cid="' + esc(c.id) + '" aria-label="Shape of the link">' +
+          '<option value=""' + (!c.route ? ' selected' : '') + '>Shape: same as the timeline (' + (d.settings.linkShape === 'straight' ? 'straight' : 'curved') + ')</option>' +
+          '<option value="curve"' + (c.route === 'curve' ? ' selected' : '') + '>Shape: curved</option>' +
+          '<option value="straight"' + (c.route === 'straight' ? ' selected' : '') + '>Shape: straight, with movable corners</option></select>' +
+          (c.bends ? '<button type="button" class="ed-btn small" data-a="conn-unbend" data-cid="' + esc(c.id) + '" title="Go back to the automatic corners">Reset corners</button>' : '') + '</div>' +
         '<div class="ed-card-foot"><button type="button" class="ed-link" data-a="open-kind" data-tid="' + esc(typeOf(c.type).id) + '">Change how “' + esc(typeOf(c.type).name) + '” links look</button></div></div>';
     });
     return h;
@@ -661,6 +677,10 @@ window.__startEditor = function () {
         '<option value="covers"' + (s.display === 'covers' ? ' selected' : '') + '>Covers: each point shows its first picture, large</option></select>' +
         '<small>Every point uses this unless you pick another Look in its own form, so you can mix rings and covers. Notes are written along links that touch a cover.</small></label>' +
       (s.display === 'covers' || S.data.points.some(function (p) { return p.look === 'cover'; }) ? '<label class="ed-field"><span>Cover width (pixels)</span><input type="number" min="90" max="320" step="10" data-sf="coverWidth" value="' + esc(s.coverWidth || 150) + '"></label>' : '') +
+      '<label class="ed-field"><span>Shape of connection links</span><select data-sf="linkShape">' +
+        '<option value="curve"' + (s.linkShape !== 'straight' ? ' selected' : '') + '>Curved: smooth, flowing lines</option>' +
+        '<option value="straight"' + (s.linkShape === 'straight' ? ' selected' : '') + '>Straight: right-angled lines with corners you can move</option></select>' +
+        '<small>Each connection can pick another shape in the Connections tab. To move corners, click a straight link in the preview and drag its yellow handles.</small></label>' +
       '<label class="ed-field"><span>Distance between stations (pixels)</span><input type="number" min="140" max="420" step="10" data-sf="spacing" value="' + esc(s.spacing || 210) + '"><small>Increase it if titles or dates get cut short.</small></label>' +
       '<label class="ed-field"><span>View when the page opens</span><select data-sf="view">' +
         '<option value="map"' + (s.view !== 'list' ? ' selected' : '') + '>Map</option>' +
@@ -805,6 +825,11 @@ window.__startEditor = function () {
       var cid = t.dataset.cid, c = S.data.connections.find(function (x) { return x.id === cid; });
       if (!c) return;
       if (f === 'note') { mutate(function (d) { d.connections.find(function (x) { return x.id === cid; }).note = t.value; }, 'c:' + cid); return; }
+      if (f === 'route') {
+        mutate(function (d) { var x = d.connections.find(function (y) { return y.id === cid; }); if (t.value) x.route = t.value; else delete x.route; });
+        updatePreview(); render();
+        return;
+      }
       if ((f === 'from' && t.value === c.to) || (f === 'to' && t.value === c.from)) {
         toast('A point can’t be connected to itself.', true);
         render();
@@ -924,6 +949,10 @@ window.__startEditor = function () {
       if (li) { li.focus(); li.select(); }
     }
     else if (a === 'open-kind') openCard('types', 'data-tcard', b.dataset.tid);
+    else if (a === 'conn-unbend') {
+      mutate(function (dd) { var c = dd.connections.find(function (x) { return x.id === b.dataset.cid; }); if (c) delete c.bends; });
+      updatePreview(); render();
+    }
     else if (a === 'lanes-unpin-all') {
       if (!armed(b, 'Click again to reset all positions')) return;
       mutate(function (dd) { dd.lines.forEach(function (l) { delete l.pos; }); });

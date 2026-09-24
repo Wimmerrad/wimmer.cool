@@ -148,6 +148,10 @@ html:has(.ctl-full), body:has(.ctl-full) { height: 100%; overflow: hidden; overs
 .ctl-editable .ctl-term.is-selected circle { stroke: var(--ctl-hi); stroke-width: 4; }
 .ctl-editable .ctl-track { cursor: pointer; }
 .ctl-editable .ctl-link-hit { cursor: pointer; }
+/* editor: the selected link, and the handles on a straight link's corners */
+.ctl-link.is-selected .ctl-link-line { stroke-width: 4.5; }
+.ctl-bend { fill: var(--ctl-bg); stroke: var(--ctl-hi); stroke-width: 3; cursor: move; }
+.ctl-bend:hover { fill: var(--ctl-hi); }
 .ctl-editable .ctl-link:hover .ctl-link-line { stroke-width: 4.5; }
 .ctl-editable .ctl-legend [data-type] { cursor: pointer; border-radius: 4px; padding: 1px 4px; margin: -1px -4px; }
 .ctl-editable .ctl-legend [data-type]:hover { background: var(--ctl-band); color: var(--ctl-ink); }
