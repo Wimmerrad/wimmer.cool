@@ -308,24 +308,29 @@
     h += '<rect class="ctl-cover-frame" ' + box + ' rx="4" stroke="' + c + '"/>';
     h += '<rect class="ctl-halo" x="' + r1(x - hw - 8) + '" y="' + r1(y - hh - 8) + '" width="' + (G.CW + 16) + '" height="' + (G.CH + 16) + '" rx="8"/>';
     // text under the cover
-    var width = G.CW + 50, ty = y + hh + 24;
+    var width = G.CW + 50, ty = y + hh + 24, tx = '', wide = 0;
     if (pic) {   // without a picture the title is already inside the frame
       var title = wrap(p.title || 'Untitled', Math.floor(width / 9.5), 2);
-      h += textLines(title, x, ty + (title.length - 1) * 19, 19, 'class="ctl-st-title" text-anchor="middle" font-size="16"');
+      tx += textLines(title, x, ty + (title.length - 1) * 19, 19, 'class="ctl-st-title" text-anchor="middle" font-size="16"');
+      title.forEach(function (l) { wide = Math.max(wide, l.length * 9.5); });
       ty += (title.length - 1) * 19 + 19;
     } else ty -= 4;
     var date = pointDate(p);
-    if (date) { h += '<text class="ctl-cv-date" x="' + x + '" y="' + ty + '" text-anchor="middle" font-size="12" fill="' + c + '">' + esc(date) + '</text>'; ty += 18; }
+    if (date) { tx += '<text class="ctl-cv-date" x="' + x + '" y="' + ty + '" text-anchor="middle" font-size="12" fill="' + c + '">' + esc(date) + '</text>'; wide = Math.max(wide, date.length * 7.5); ty += 18; }
     if (p.caption) {
       var cap = wrap(p.caption, Math.floor(width / 7.2), 2);
-      h += textLines(cap, x, ty + (cap.length - 1) * 16, 16, 'class="ctl-st-cap" text-anchor="middle" font-size="13" fill="' + c + '"');
+      tx += textLines(cap, x, ty + (cap.length - 1) * 16, 16, 'class="ctl-st-cap" text-anchor="middle" font-size="13" fill="' + c + '"');
+      cap.forEach(function (l) { wide = Math.max(wide, l.length * 7.2); });
     }
+    // a block in the map's colour behind that text, so links passing under it don't cross the words
+    if (tx) h += '<rect class="ctl-cv-textbg" x="' + r1(x - wide / 2 - 6) + '" y="' + r1(y + hh + 7) + '" width="' + r1(wide + 12) + '" height="' + r1(coverBottom(p, G) - hh - 7) + '" rx="4"/>' + tx;
     return '<g class="ctl-st ctl-cover" data-id="' + esc(id) + '" tabindex="0" role="button" aria-label="' + esc((p.title || 'Untitled') + (date ? ', ' + pointDate(p, true) : '')) + '" style="--c:' + c + '">' +
       '<rect class="ctl-hit" x="' + r1(x - hw - 4) + '" y="' + r1(y - hh - 4) + '" width="' + (G.CW + 8) + '" height="' + (G.CH + 8) + '" rx="6"/>' + h + '</g>';   // click zone: the cover, plus its own text
   }
 
   // The area a cover and the text under it take up, around its centre
   function coverBoxOf(P, G) { return { l: P.x - G.CW / 2 - 6, r: P.x + G.CW / 2 + 6, t: P.y - G.CH / 2 - 6, b: P.y + coverBottom(P.p, G) }; }
+  function coverFrameOf(P, G) { return { l: P.x - G.CW / 2 - 6, r: P.x + G.CW / 2 + 6, t: P.y - G.CH / 2 - 6, b: P.y + G.CH / 2 + 6 }; }
   // How far below its centre a cover's text ends (same steps as drawCover)
   function coverBottom(p, G) {
     var width = G.CW + 50, ty = G.CH / 2 + 24, last = G.CH / 2;
@@ -360,15 +365,25 @@
     var fixA = savedEnd(ends.from, a), fixB = savedEnd(ends.to, b);
     // each end leaves from the edge of its cover (or the text under it), or from just outside its ring, unless moved by hand
     var endA = function (toward) { return fixA || (a.p._cover ? boxEdge([a.x, a.y], toward, coverBoxOf(a, G)) : offTowards([a.x, a.y], toward, R_ST + 5)); };
-    var endB = function (toward) { return fixB || (b.p._cover ? offTowards(boxEdge([b.x, b.y], toward, coverBoxOf(b, G)), toward, 4) : offTowards([b.x, b.y], toward, R_ST + 5)); };
+    // the arrow end points at the cover picture itself (passing under the text below it)
+    var endB = function (toward) { return fixB || (b.p._cover ? offTowards(boxEdge([b.x, b.y], toward, coverFrameOf(b, G)), toward, 4) : offTowards([b.x, b.y], toward, R_ST + 5)); };
     if (!straight) {
       var dy = b.y - a.y, dx = b.x - a.x, vertical = Math.abs(dy) > Math.abs(dx) * 0.35;
       // find where each end leaves its point (straight down/up or sideways), then shape the curve between those ends,
       // so it never starts inside a cover's text or loops back over it
-      var A = endA(vertical ? [a.x, a.y + (dy || 1)] : [a.x + (dx || 1), a.y]);
-      var B = endB(vertical ? [b.x, b.y - (dy || 1)] : [b.x - (dx || 1), b.y]);
-      var ey = B[1] - A[1], ex = B[0] - A[0];
-      var c1 = vertical ? [A[0], A[1] + ey * 0.5] : [A[0] + ex * 0.5, A[1]], c2 = vertical ? [B[0], B[1] - ey * 0.5] : [B[0] - ex * 0.5, B[1]];
+      var A, B, c1, c2;
+      if (vertical && dy < 0 && b.p._cover && !fixB) {
+        // arriving at a cover from below: go up beside its text and point into the side of the picture
+        var side = a.x < b.x - 1 ? -1 : 1, col = b.x + side * (G.CW / 2 + 60);
+        B = [b.x + side * (G.CW / 2 + 10), b.y + G.CH / 4];
+        A = endA([col, a.y + dy / 2]);
+        c1 = [col, A[1]]; c2 = [col, B[1]];
+      } else {
+        A = endA(vertical ? [a.x, a.y + (dy || 1)] : [a.x + (dx || 1), a.y]);
+        B = endB(vertical ? [b.x, b.y - (dy || 1)] : [b.x - (dx || 1), b.y]);
+        var ey = B[1] - A[1], ex = B[0] - A[0];
+        c1 = vertical ? [A[0], A[1] + ey * 0.5] : [A[0] + ex * 0.5, A[1]]; c2 = vertical ? [B[0], B[1] - ey * 0.5] : [B[0] - ex * 0.5, B[1]];
+      }
       return {
         straight: false, A: A, B: B, tail: c2,
         d: 'M' + r1(A[0]) + ',' + r1(A[1]) + 'C' + r1(c1[0]) + ',' + r1(c1[1]) + ' ' + r1(c2[0]) + ',' + r1(c2[1]) + ' ' + r1(B[0]) + ',' + r1(B[1]),
@@ -377,7 +392,9 @@
     }
     var corners = bends || savedBends(c) || autoBends(a, b);
     var first = corners.length ? corners[0] : [b.x, b.y], last = corners.length ? corners[corners.length - 1] : [a.x, a.y];
-    var pts = [endA(first)].concat(corners, [endB(last)]);
+    // a straight link coming up into a cover's text stops below the text (move a corner to the side to reach the picture)
+    var under = b.p._cover && !fixB && last[1] > b.y + G.CH / 2 && Math.abs(last[0] - b.x) < G.CW / 2 + 30;
+    var pts = [endA(first)].concat(corners, [under ? offTowards(boxEdge([b.x, b.y], last, coverBoxOf(b, G)), last, 4) : endB(last)]);
     return { straight: true, corners: corners, pts: pts, A: pts[0], B: pts[pts.length - 1], tail: last, mid: pathMid(pts), d: polyD(pts) };
   }
 
