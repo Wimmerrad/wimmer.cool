@@ -332,7 +332,13 @@ window.__startEditor = function () {
     readHash: false,
     height: '100%',
     resolveImage: function (src) { return S.imageUrls.get(src) || null; },
-    onSelect: function (id) { if (id) openPoint(id, true); },
+    onSelect: function (id) {
+      if (id) openPoint(id, true);
+      else if (S.tab === 'points' && S.editing) { S.editing = null; render(); }   // clicked empty map: back to the list
+    },
+    // click a dashed link: open that connection; click a kind in the legend: open that kind
+    onLinkClick: function (cid) { openCard('connections', 'data-ccard', cid); },
+    onKindClick: function (tid) { openCard('types', 'data-tcard', tid); },
     editable: true,
     // double-click a line's circle: new point at the end of that line
     onAddToLine: function (lineId) { addPoint({ line: lineId }); },
@@ -348,11 +354,14 @@ window.__startEditor = function () {
     onLineClick: function (lineId) { openLine(lineId); }
   });
 
-  function openLine(lineId) {
-    S.tab = 'lanes';
+  function openLine(lineId) { openCard('lanes', 'data-lcard', lineId); }
+
+  // Switch to a tab, scroll to one card in it and briefly outline it.
+  function openCard(tab, attr, id) {
+    S.tab = tab;
     render();
     var card = null;
-    pane.querySelectorAll('[data-lcard]').forEach(function (c) { if (c.getAttribute('data-lcard') === lineId) card = c; });
+    pane.querySelectorAll('[' + attr + ']').forEach(function (c) { if (c.getAttribute(attr) === id) card = c; });
     if (!card) return;
     card.scrollIntoView({ block: 'start', behavior: 'smooth' });
     card.classList.add('is-flash');
@@ -550,12 +559,13 @@ window.__startEditor = function () {
     if (!d.connections.length) h += '<p class="ed-empty">No connections yet.</p>';
     var byDate = function (c) { var p = point(c.from); return p ? dv(p.date) : 0; };
     d.connections.slice().sort(function (a, b) { return byDate(a) - byDate(b); }).forEach(function (c) {
-      h += '<div class="ed-card"><div class="ed-card-row"><select data-cf="from" data-cid="' + esc(c.id) + '" aria-label="From">' + pointOptions(c.from) + '</select></div>' +
+      h += '<div class="ed-card" data-ccard="' + esc(c.id) + '"><div class="ed-card-row"><select data-cf="from" data-cid="' + esc(c.id) + '" aria-label="From">' + pointOptions(c.from) + '</select></div>' +
         '<div class="ed-card-row"><select data-cf="type" data-cid="' + esc(c.id) + '" aria-label="Kind of connection">' + options(d.types, c.type) + '</select>' +
         '<button type="button" class="ed-btn small icon" data-a="conn-swap" data-cid="' + esc(c.id) + '" title="Reverse direction" aria-label="Reverse direction">⇅</button></div>' +
         '<div class="ed-card-row"><select data-cf="to" data-cid="' + esc(c.id) + '" aria-label="To">' + pointOptions(c.to) + '</select></div>' +
         '<div class="ed-card-row"><input class="ed-input" data-cf="note" data-cid="' + esc(c.id) + '" value="' + esc(c.note || '') + '" placeholder="Note (optional)" aria-label="Note">' +
-        '<button type="button" class="ed-btn small icon danger" data-a="conn-del" data-cid="' + esc(c.id) + '" aria-label="Remove connection">✕</button></div></div>';
+        '<button type="button" class="ed-btn small icon danger" data-a="conn-del" data-cid="' + esc(c.id) + '" aria-label="Remove connection">✕</button></div>' +
+        '<div class="ed-card-foot"><button type="button" class="ed-link" data-a="open-kind" data-tid="' + esc(typeOf(c.type).id) + '">Change how “' + esc(typeOf(c.type).name) + '” links look</button></div></div>';
     });
     return h;
   }
@@ -569,7 +579,7 @@ window.__startEditor = function () {
     d.types.forEach(function (t) {
       var n = d.connections.filter(function (c) { return c.type === t.id; }).length;
       var id = esc(t.id);
-      h += '<div class="ed-card">' +
+      h += '<div class="ed-card" data-tcard="' + id + '">' +
         '<label class="ed-field"><span>Name</span><input data-tf="name" data-tid="' + id + '" value="' + esc(t.name || '') + '" placeholder="e.g. Influenced"></label>' +
         '<label class="ed-field"' + (t.directed === false ? ' hidden' : '') + '><span>Name seen from the other end</span><input data-tf="inverse" data-tid="' + id + '" value="' + esc(t.inverse || '') + '" placeholder="e.g. Influenced by"></label>' +
         '<div class="ed-field"><span>Colour</span>' + swatches('data-tid', t.id, t.color) + '</div>' +
@@ -892,6 +902,7 @@ window.__startEditor = function () {
       var li = pane.querySelector('[data-lnf="name"][data-lid="' + lid + '"]');
       if (li) { li.focus(); li.select(); }
     }
+    else if (a === 'open-kind') openCard('types', 'data-tcard', b.dataset.tid);
     else if (a === 'lane-unpin') {
       mutate(function (dd) { var l = dd.lines.find(function (x) { return x.id === b.dataset.lid; }); if (l) delete l.pos; });
       updatePreview(); render();

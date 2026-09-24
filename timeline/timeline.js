@@ -468,6 +468,11 @@
       }
     });
     this.searchEl.addEventListener('input', function () { self.setQuery(self.searchEl.value); });
+    // Editor only: clicking a kind in the legend opens that kind's settings
+    this.legend.addEventListener('click', function (e) {
+      var k = e.target.closest('[data-type]');
+      if (k && self.opts.editable && self.opts.onKindClick) self.opts.onKindClick(k.getAttribute('data-type'));
+    });
     this.searchEl.addEventListener('keydown', function (e) {
       if (e.key !== 'Enter') return;
       var hits = self.data.points.filter(function (p) { return matches(p, self.data.lineById.get(p._line), self.q); });
@@ -479,10 +484,17 @@
     // Stations
     this.svg.addEventListener('click', function (e) {
       var g = e.target.closest('.ctl-st');
-      if (g && !self._dragged) self.select(g.dataset.id === self.selected && self.opts.panel ? null : g.dataset.id, { pan: false });
+      if (self._dragged) return;
+      if (g) { self.select(g.dataset.id === self.selected && self.opts.panel ? null : g.dataset.id, { pan: false }); return; }
+      var ed = self.opts.editable;
       // Editor only: clicking a line's circle or track opens that line's settings
-      var lg = !g && !self._dragged && self.opts.editable && self.opts.onLineClick && e.target.closest('.ctl-term, .ctl-track');
-      if (lg) self.opts.onLineClick(lg.closest('.ctl-lineg').getAttribute('data-line'));
+      var lg = e.target.closest('.ctl-term, .ctl-track');
+      if (lg) { if (ed && self.opts.onLineClick) self.opts.onLineClick(lg.closest('.ctl-lineg').getAttribute('data-line')); return; }
+      // Editor only: clicking a dashed link opens that connection's settings
+      var lk = e.target.closest('.ctl-link');
+      if (lk) { if (ed && self.opts.onLinkClick) self.opts.onLinkClick(lk.dataset.c); return; }
+      // Empty space: unselect
+      if (self.selected) self.select(null);
     });
     // Editor only: double-click a line's circle to add a point to that line
     this.svg.addEventListener('dblclick', function (e) {
@@ -624,9 +636,9 @@
       return self.data.byId.get(c.from)._line !== self.data.byId.get(c.to)._line;
     }).map(function (c) { return c._type; }));
     this.legend.innerHTML = this.data.types.filter(function (t) { return used.has(t.id); }).map(function (t) {
-      return '<span title="' + esc(t.description || '') + '">' + kindSample(t) + esc(t.name) + '</span>';
+      return '<span data-type="' + esc(t.id) + '" title="' + esc(t.description || '') + '">' + kindSample(t) + esc(t.name) + '</span>';
     }).join('') + '<span class="ctl-hint">' + (this.opts.editable
-      ? 'Double-click a line’s circle to add a point · drag a circle to move its line · drag a station onto another to connect them'
+      ? 'Double-click a line’s circle to add a point · drag a circle to move its line · select a station, then drag it onto another to connect them'
       : this.hint) + '</span>';
     this.root.classList.toggle('ctl-editable', !!this.opts.editable);
     this._syncTools();
@@ -723,7 +735,7 @@
       this._animTo(s, (W - L.width * s) / 2, (H - L.height * s) / 2, animate);
     } else {
       // phones get a readable size and pan sideways; larger screens fill the width
-      s = W < 640 ? 0.9 : clamp(W / L.width, 0.68, 1);
+      s = W < 640 ? 1 : clamp(W / L.width, 0.85, 1);
       // start a little lower when the floating toolbar would sit on top of the title
       this._animTo(s, L.width * s < W ? (W - L.width * s) / 2 : 0, W < 1000 ? 48 : 0, false);
     }
@@ -783,6 +795,7 @@
     // Editor only: a line's circle drags the whole line; a station drags out a new connection.
     if (this.opts.editable && this.viewMode === 'map' && !this.pointers.size) {
       var term = e.target.closest('.ctl-term'), st = !term && e.target.closest('.ctl-st');
+      if (st && st.dataset.id !== this.selected) st = null;   // connect only from the selected station; others pan the map
       if (term || st) {
         this.edit = { kind: term ? 'line' : 'link', id: term ? term.dataset.line : st.dataset.id, pid: e.pointerId, x: e.clientX, y: e.clientY, moved: false };
         this._dragged = false;
