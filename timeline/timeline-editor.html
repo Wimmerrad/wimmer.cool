@@ -614,6 +614,11 @@ window.__startEditor = function () {
         '<label>Name<input data-lnf="name" data-lid="' + id + '" value="' + esc(l.name || '') + '" placeholder="e.g. Universal Century"></label></div>' +
         '<div class="ed-field" style="margin-top:6px"><span>Colour</span>' + swatches('data-lid', l.id, l.color) + '</div>' +
         '<label class="ed-field"><span>Where the line starts</span><select data-lnf="start" data-lid="' + id + '">' + startOpts + '</select></label>' +
+        (l.start ? '<div class="ed-grid" style="grid-template-columns:0.8fr 1.6fr;margin-bottom:12px">' +
+          '<label>Drop line style<select data-lnf="startStyle" data-lid="' + id + '">' + STYLES.map(function (s) {
+            return '<option value="' + s[0] + '"' + ((l.startStyle || 'dashed') === s[0] ? ' selected' : '') + '>' + s[1] + '</option>';
+          }).join('') + '</select></label>' +
+          '<label>Note along the drop line<input data-lnf="startNote" data-lid="' + id + '" value="' + esc(l.startNote || '') + '" placeholder="Optional, e.g. “Anime adaptation”"></label></div>' : '') +
         '<label class="ed-check"><input type="checkbox" data-lnf="continues" data-lid="' + id + '"' + (l.continues !== false ? ' checked' : '') + '> Keep going to the right edge (the story continues)</label>' +
         (l.pos ? '<p class="ed-hint" style="margin:-4px 0 10px">Placed by hand in the preview. <button type="button" class="ed-link" data-a="lane-unpin" data-lid="' + id + '">Put it back in the automatic layout</button></p>'
                : '<p class="ed-hint" style="margin:-4px 0 10px">Tip: drag the line’s circle in the preview to place it anywhere.</p>') +
@@ -808,6 +813,7 @@ window.__startEditor = function () {
         else if (f === 'start') { if (t.value) ln.start = t.value; else delete ln.start; }
         else ln[f] = t.value;
       }, 'lane:' + lid + ':' + f);
+      if (f === 'start') render();   // shows or hides the drop line options
     } else if ((f = t.dataset.sf)) {
       mutate(function (d) {
         if (f === 'showTitle') d.settings.showTitle = t.checked;

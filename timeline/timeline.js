@@ -294,7 +294,7 @@
       h += textLines(cap, x, ty + (cap.length - 1) * 16, 16, 'class="ctl-st-cap" text-anchor="middle" font-size="13" fill="' + c + '"');
     }
     return '<g class="ctl-st ctl-cover" data-id="' + esc(id) + '" tabindex="0" role="button" aria-label="' + esc((p.title || 'Untitled') + (date ? ', ' + pointDate(p, true) : '')) + '" style="--c:' + c + '">' +
-      '<rect class="ctl-hit" x="' + r1(x - hw - 12) + '" y="' + r1(y - hh - 12) + '" width="' + (G.CW + 24) + '" height="' + (G.CH + 120) + '" rx="8"/>' + h + '</g>';
+      '<rect class="ctl-hit" x="' + r1(x - hw - 4) + '" y="' + r1(y - hh - 4) + '" width="' + (G.CW + 8) + '" height="' + (G.CH + 8) + '" rx="6"/>' + h + '</g>';   // click zone: the cover, plus its own text
   }
 
   // Where a straight line from the centre of box b (towards q) leaves the box.
@@ -322,7 +322,16 @@
     L.lines.forEach(function (R) {
       if (!R.start) return;
       var sx = R.start.x, sy = R.start.y + (G.covers ? G.CH / 2 + 90 : R_ST + 4), ex = R.x, ey = R.y - R_T - 4, my = (sy + ey) / 2;
-      out.push('<path class="ctl-startlink" fill="none" stroke="' + R.line._color + '" d="M' + r1(sx) + ',' + r1(sy) + 'C' + r1(sx) + ',' + r1(my) + ' ' + r1(ex) + ',' + r1(my) + ' ' + r1(ex) + ',' + r1(ey) + '"/>');
+      var sd = 'M' + r1(sx) + ',' + r1(sy) + 'C' + r1(sx) + ',' + r1(my) + ' ' + r1(ex) + ',' + r1(my) + ' ' + r1(ex) + ',' + r1(ey);
+      var style = R.line.startStyle || 'dashed', dash = style === 'dashed' ? '7 7' : DASH[style] || '';
+      var note = '';
+      if (R.line.startNote) {   // optional note written along the drop line, at its middle
+        var nl = wrap(R.line.startNote, 26, 3);
+        note = textLines(nl, (sx + ex) / 2 + (sx === ex ? 10 : 0), my + (nl.length - 1) * 7.5, 15,
+          'class="ctl-start-note" text-anchor="' + (sx === ex ? 'start' : 'middle') + '" font-size="11.5" fill="' + R.line._color + '"');
+      }
+      out.push('<g class="ctl-startg" data-line="' + esc(R.line.id) + '"><path class="ctl-start-hit" d="' + sd + '"/>' +
+        '<path class="ctl-startlink" fill="none" stroke="' + R.line._color + '"' + (dash ? ' stroke-dasharray="' + dash + '"' : '') + ' d="' + sd + '"/>' + note + '</g>');
     });
     // Tracks: branches first, then the main line on top
     L.lines.forEach(function (R) {
@@ -391,7 +400,7 @@
       if (date) h += '<text class="ctl-st-date" x="' + (x + R_ST + 6) + '" y="' + (y + 3.6) + '" font-size="11.5" fill="' + c + '">' + esc(date.length > max ? date.slice(0, max - 1) + '…' : date) + ' »</text>';
       if (p.caption) h += textLines(wrap(p.caption, Math.floor((SP - 12) / 7.1), 2), x - 10, y + 31 + (wrap(p.caption, Math.floor((SP - 12) / 7.1), 2).length - 1) * 16, 16, 'class="ctl-st-cap" font-size="13.5" fill="' + c + '"');
       st.push('<g class="ctl-st" data-id="' + esc(id) + '" tabindex="0" role="button" aria-label="' + esc((p.title || 'Untitled') + (date ? ', ' + pointDate(p, true) : '')) + '" style="--c:' + c + '">' +
-        '<rect class="ctl-hit" x="' + (x - 18) + '" y="' + (y - 90) + '" width="' + (SP - 10) + '" height="' + (p.caption ? 136 : 106) + '" rx="8"/>' + h +
+        '<circle class="ctl-hit" cx="' + x + '" cy="' + y + '" r="20"/>' + h +   // small click zone: the ring, plus the station's own text
         '<circle class="ctl-halo" cx="' + x + '" cy="' + y + '" r="' + (R_ST + 7) + '"/>' +
         '<circle class="ctl-ring" cx="' + x + '" cy="' + y + '" r="' + R_ST + '" stroke="' + c + '"/></g>');
     });
@@ -485,15 +494,23 @@
     this.svg.addEventListener('click', function (e) {
       var g = e.target.closest('.ctl-st');
       if (self._dragged) return;
-      if (g) { self.select(g.dataset.id === self.selected && self.opts.panel ? null : g.dataset.id, { pan: false }); return; }
+      if (g) { self._selectLine(null); self.select(g.dataset.id === self.selected && self.opts.panel ? null : g.dataset.id, { pan: false }); return; }
       var ed = self.opts.editable;
-      // Editor only: clicking a line's circle or track opens that line's settings
-      var lg = e.target.closest('.ctl-term, .ctl-track');
-      if (lg) { if (ed && self.opts.onLineClick) self.opts.onLineClick(lg.closest('.ctl-lineg').getAttribute('data-line')); return; }
+      // Editor only: clicking a line's circle or track selects the line (so its circle can be dragged) and opens its settings
+      var lg = e.target.closest('.ctl-term, .ctl-track, .ctl-startg');
+      if (lg) {
+        if (!ed) return;
+        var lineId = lg.closest('[data-line]').getAttribute('data-line');
+        if (self.selected) self.select(null, { silent: true });
+        self._selectLine(lineId);
+        if (self.opts.onLineClick) self.opts.onLineClick(lineId);
+        return;
+      }
       // Editor only: clicking a dashed link opens that connection's settings
       var lk = e.target.closest('.ctl-link');
       if (lk) { if (ed && self.opts.onLinkClick) self.opts.onLinkClick(lk.dataset.c); return; }
       // Empty space: unselect
+      self._selectLine(null);
       if (self.selected) self.select(null);
     });
     // Editor only: double-click a line's circle to add a point to that line
@@ -638,7 +655,7 @@
     this.legend.innerHTML = this.data.types.filter(function (t) { return used.has(t.id); }).map(function (t) {
       return '<span data-type="' + esc(t.id) + '" title="' + esc(t.description || '') + '">' + kindSample(t) + esc(t.name) + '</span>';
     }).join('') + '<span class="ctl-hint">' + (this.opts.editable
-      ? 'Double-click a line’s circle to add a point · drag a circle to move its line · select a station, then drag it onto another to connect them'
+      ? 'Double-click a line’s circle to add a point · click a circle, then drag it to move its line · click a station, then drag it onto another to connect them'
       : this.hint) + '</span>';
     this.root.classList.toggle('ctl-editable', !!this.opts.editable);
     this._syncTools();
@@ -677,7 +694,7 @@
   // Put a solid block behind each date so the line stops cleanly around the text.
   P._dateBacks = function () {
     this.world.querySelectorAll('.ctl-date-bg').forEach(function (r) { r.remove(); });
-    this.world.querySelectorAll('.ctl-st-date, .ctl-link-note').forEach(function (t) {
+    this.world.querySelectorAll('.ctl-st-date, .ctl-link-note, .ctl-start-note').forEach(function (t) {
       var b;
       try { b = t.getBBox(); } catch (e) { return; }
       if (!b || !b.width) return;   // not drawn yet (e.g. list view is showing); redone on the next render
@@ -716,6 +733,8 @@
     this.world.querySelectorAll('.ctl-link').forEach(function (g) {
       g.classList.toggle('is-on', !!f && (g.dataset.from === f || g.dataset.to === f));
     });
+    if (this.selectedLine && !d.lineById.has(this.selectedLine)) this.selectedLine = null;
+    this._selectLine(this.opts.editable ? this.selectedLine : null);
   };
 
   // ---------- view ----------
@@ -735,7 +754,7 @@
       this._animTo(s, (W - L.width * s) / 2, (H - L.height * s) / 2, animate);
     } else {
       // phones get a readable size and pan sideways; larger screens fill the width
-      s = W < 640 ? 1 : clamp(W / L.width, 0.85, 1);
+      s = W < 640 ? 1 : clamp(W / L.width, 1, 1);
       // start a little lower when the floating toolbar would sit on top of the title
       this._animTo(s, L.width * s < W ? (W - L.width * s) / 2 : 0, W < 1000 ? 48 : 0, false);
     }
@@ -796,6 +815,7 @@
     if (this.opts.editable && this.viewMode === 'map' && !this.pointers.size) {
       var term = e.target.closest('.ctl-term'), st = !term && e.target.closest('.ctl-st');
       if (st && st.dataset.id !== this.selected) st = null;   // connect only from the selected station; others pan the map
+      if (term && term.getAttribute('data-line') !== this.selectedLine) term = null;   // move only a selected line; others pan the map
       if (term || st) {
         this.edit = { kind: term ? 'line' : 'link', id: term ? term.dataset.line : st.dataset.id, pid: e.pointerId, x: e.clientX, y: e.clientY, moved: false };
         this._dragged = false;
@@ -838,6 +858,13 @@
     if (g.vert) this.v.ty = g.ty + dy;   // touch on an embedded map leaves vertical swipes to page scrolling
     this._apply();
   };
+  // Editor: the selected line's circle gets a highlight and can be dragged.
+  P._selectLine = function (id) {
+    this.selectedLine = id || null;
+    var sel = this.selectedLine;
+    this.world.querySelectorAll('.ctl-term').forEach(function (t) { t.classList.toggle('is-selected', t.getAttribute('data-line') === sel); });
+  };
+
   // ---------- editor dragging ----------
   P._lineGroup = function (id) {
     var found = null;

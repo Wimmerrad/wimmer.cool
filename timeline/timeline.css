@@ -112,7 +112,11 @@ html:has(.ctl-full), body:has(.ctl-full) { height: 100%; overflow: hidden; overs
 .ctl-maptitle { font-weight: 900; font-style: italic; letter-spacing: -0.01em; fill: var(--ctl-title); }
 .ctl-mapsub { font-style: italic; fill: var(--ctl-muted); }
 .ctl-track { fill: none; stroke-width: 7; stroke-linecap: round; stroke-linejoin: round; }
-.ctl-startlink { fill: none; stroke-width: 3; stroke-dasharray: 7 7; stroke-linecap: round; }
+.ctl-startlink { fill: none; stroke-width: 3; stroke-linecap: round; }
+.ctl-start-hit { fill: none; stroke: transparent; stroke-width: 14; }
+.ctl-start-note { font-style: italic; font-weight: 600; }
+.ctl-editable .ctl-start-hit { cursor: pointer; }
+.ctl-editable .ctl-startg:hover .ctl-startlink { stroke-width: 5; }
 .ctl-term-label { font-weight: 800; font-style: italic; letter-spacing: -0.02em; }
 .ctl-term-name { font-style: italic; font-weight: 600; }
 .ctl-ring { fill: var(--ctl-bg); stroke-width: 5.5; }
@@ -138,7 +142,10 @@ html:has(.ctl-full), body:has(.ctl-full) { height: 100%; overflow: hidden; overs
 .ctl-st.ctl-cover { transition: filter 0.15s; }
 
 /* Editor-only dragging */
-.ctl-editable .ctl-term { cursor: move; }
+.ctl-editable .ctl-term { cursor: pointer; }
+/* a selected line's circle: yellow ring, and it can now be dragged */
+.ctl-editable .ctl-term.is-selected { cursor: move; }
+.ctl-editable .ctl-term.is-selected circle { stroke: var(--ctl-hi); stroke-width: 4; }
 .ctl-editable .ctl-track { cursor: pointer; }
 .ctl-editable .ctl-link-hit { cursor: pointer; }
 .ctl-editable .ctl-link:hover .ctl-link-line { stroke-width: 4.5; }
@@ -146,7 +153,7 @@ html:has(.ctl-full), body:has(.ctl-full) { height: 100%; overflow: hidden; overs
 .ctl-editable .ctl-legend [data-type]:hover { background: var(--ctl-band); color: var(--ctl-ink); }
 .ctl-editable .ctl-st.is-selected { cursor: crosshair; }   /* the selected station can be dragged onto another to connect */
 .ctl-editable .ctl-track:hover { stroke-width: 10; }
-.ctl-editable .ctl-term:hover circle { stroke: var(--ctl-hi); stroke-width: 3; }
+.ctl-editable .ctl-term:not(.is-selected):hover circle { stroke: var(--ctl-hi); stroke-width: 2; }
 .ctl-map.is-moving-line, .ctl-map.is-moving-line .ctl-term { cursor: grabbing; }
 .ctl-map.is-moving-line .ctl-link, .ctl-map.is-moving-line .ctl-startlink { opacity: 0.12; }
 .ctl-map.is-linking, .ctl-map.is-linking .ctl-st { cursor: crosshair; }
