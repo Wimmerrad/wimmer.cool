@@ -213,6 +213,7 @@
   var RING_GEOM = { covers: false, TRACK: TRACK, ABOVE: ABOVE, BELOW: BELOW, MINSP: 140 };
   // stands in for a main point when a free point belongs to none
   var FREE_LINE = { id: '', label: '', name: 'Free points', color: '#c4c9ea', _color: '#c4c9ea' };
+  var PHONE_ZOOM = 0.7;   // starting zoom on phones (screens under 640px wide); desktop starts at 1
   var TITLE_ID = '\u0000title';   // the map's title, when it's selected in the editor
 
   // Each point picks its own look: "cover", "ring", or (unset) the timeline's default look.
@@ -1010,7 +1011,7 @@
       this._animTo(s, (W - L.width * s) / 2, (H - L.height * s) / 2, animate);
     } else {
       // phones get a readable size and pan sideways; larger screens fill the width
-      s = W < 640 ? 1 : clamp(W / L.width, 1, 1);
+      s = W < 640 ? PHONE_ZOOM : clamp(W / L.width, 1, 1);
       // start a little lower when the floating toolbar would sit on top of the title
       this._animTo(s, L.width * s < W ? (W - L.width * s) / 2 : 0, W < 1000 ? 48 : 0, false);
     }
