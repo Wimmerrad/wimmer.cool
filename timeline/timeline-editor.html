@@ -503,6 +503,12 @@ window.__startEditor = function () {
     h += '<label class="ed-field"><span>Position</span><select data-f="track">' + [[-2, 'Branch, two levels above'], [-1, 'Branch above the line'], [0, 'On the main line'], [1, 'Branch below the line'], [2, 'Branch, two levels below']].map(function (o) {
       return '<option value="' + o[0] + '"' + (o[0] === track ? ' selected' : '') + '>' + o[1] + '</option>';
     }).join('') + '</select><small>Stations next to each other on the same branch share one side track, which leaves and rejoins the main line.</small></label>';
+    var dflt = S.data.settings.display === 'covers' ? 'Cover' : 'Ring';
+    h += '<label class="ed-field"><span>Look</span><select data-f="look">' +
+      '<option value=""' + (!p.look ? ' selected' : '') + '>Same as the timeline (' + dflt + ')</option>' +
+      '<option value="ring"' + (p.look === 'ring' ? ' selected' : '') + '>Ring: a small station on the line</option>' +
+      '<option value="cover"' + (p.look === 'cover' ? ' selected' : '') + '>Cover: its first picture, shown large</option></select>' +
+      '<small>The timeline’s default is set in Settings.' + (p.look === 'cover' && !(p.images || []).length ? ' Add a picture below. Until then the cover shows the title.' : '') + '</small></label>';
     h += '<label class="ed-field"><span>Caption under the station</span><input data-f="caption" value="' + esc(p.caption || '') + '" placeholder="Optional, e.g. “Amuro gets the Gundam”"></label>';
     h += '<label class="ed-field"><span>Short summary</span><textarea rows="2" data-f="summary">' + esc(p.summary || '') + '</textarea></label>';
     h += '<label class="ed-field"><span>Full description</span><textarea rows="6" data-f="description">' + esc(p.description || '') + '</textarea><small>Leave an empty line between paragraphs.</small></label>';
@@ -650,11 +656,11 @@ window.__startEditor = function () {
       '<label class="ed-field"><span>Colours</span><select data-sf="theme">' +
         '<option value="night"' + (s.theme !== 'paper' ? ' selected' : '') + '>Night: bright lines on deep blue</option>' +
         '<option value="paper"' + (s.theme === 'paper' ? ' selected' : '') + '>Paper: lines on a light background</option></select></label>' +
-      '<label class="ed-field"><span>Look of the stations</span><select data-sf="display">' +
-        '<option value="stations"' + (s.display !== 'covers' ? ' selected' : '') + '>Stations: small rings, like a transit map</option>' +
+      '<label class="ed-field"><span>Default look of the points</span><select data-sf="display">' +
+        '<option value="stations"' + (s.display !== 'covers' ? ' selected' : '') + '>Rings: small stations, like a transit map</option>' +
         '<option value="covers"' + (s.display === 'covers' ? ' selected' : '') + '>Covers: each point shows its first picture, large</option></select>' +
-        '<small>Covers suits box art, posters and book covers. Connection notes are written along the links.</small></label>' +
-      (s.display === 'covers' ? '<label class="ed-field"><span>Cover width (pixels)</span><input type="number" min="90" max="320" step="10" data-sf="coverWidth" value="' + esc(s.coverWidth || 150) + '"></label>' : '') +
+        '<small>Every point uses this unless you pick another Look in its own form, so you can mix rings and covers. Notes are written along links that touch a cover.</small></label>' +
+      (s.display === 'covers' || S.data.points.some(function (p) { return p.look === 'cover'; }) ? '<label class="ed-field"><span>Cover width (pixels)</span><input type="number" min="90" max="320" step="10" data-sf="coverWidth" value="' + esc(s.coverWidth || 150) + '"></label>' : '') +
       '<label class="ed-field"><span>Distance between stations (pixels)</span><input type="number" min="140" max="420" step="10" data-sf="spacing" value="' + esc(s.spacing || 210) + '"><small>Increase it if titles or dates get cut short.</small></label>' +
       '<label class="ed-field"><span>View when the page opens</span><select data-sf="view">' +
         '<option value="map"' + (s.view !== 'list' ? ' selected' : '') + '>Map</option>' +
@@ -779,6 +785,7 @@ window.__startEditor = function () {
       var p = d.points.find(function (x) { return x.id === id; });
       if (f === 'circa' || f === 'mapImage') { if (t.checked) p[f] = true; else delete p[f]; }
       else if (f === 'track') { var n = parseInt(t.value, 10) || 0; if (n) p.track = n; else delete p.track; }
+      else if (f === 'look') { if (t.value) p.look = t.value; else delete p.look; }
       else if (f === 'tags') p.tags = t.value.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
       else p[f] = t.value;
     }, 'pt:' + id + ':' + f);

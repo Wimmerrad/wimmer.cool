@@ -192,26 +192,32 @@
     return d + 'L' + r1(last[0]) + ',' + r1(last[1]);
   }
 
-  // Sizes for the two looks: small ring "stations", or large framed "covers".
-  function geom(s) {
-    if (s.display === 'covers') {
-      var cw = clamp(parseInt(s.coverWidth, 10) || 150, 90, 320), ch = Math.round(cw * 1.42);
-      return { covers: true, CW: cw, CH: ch, TRACK: ch + 170, ABOVE: ch / 2 + 34, BELOW: ch / 2 + 118, MINSP: cw + 70 };
-    }
-    return { covers: false, TRACK: TRACK, ABOVE: ABOVE, BELOW: BELOW, MINSP: 140 };
+  // Sizes for the two looks: small "ring" stations, or large framed "covers".
+  function coverGeom(s) {
+    var cw = clamp(parseInt(s.coverWidth, 10) || 150, 90, 320), ch = Math.round(cw * 1.42);
+    return { covers: true, CW: cw, CH: ch, TRACK: ch + 170, ABOVE: ch / 2 + 34, BELOW: ch / 2 + 118, MINSP: cw + 70 };
   }
+  var RING_GEOM = { covers: false, TRACK: TRACK, ABOVE: ABOVE, BELOW: BELOW, MINSP: 140 };
+
+  // Each point picks its own look: "cover", "ring", or (unset) the timeline's default look.
+  function isCover(p, s) { return p.look === 'cover' || (p.look !== 'ring' && s.display === 'covers'); }
 
   // Work out where every line, branch and station sits.
   function layout(data) {
-    var s = data.settings, G = geom(s);
-    var SP = Math.max(clamp(parseInt(s.spacing, 10) || 210, 140, 600), G.MINSP);
-    var TRACK = G.TRACK, ABOVE = G.ABOVE, BELOW = G.BELOW;
+    var s = data.settings, CG = coverGeom(s);
+    data.points.forEach(function (p) { p._cover = isCover(p, s); });
+    var anyCover = data.points.some(function (p) { return p._cover; });
+    // spacing is shared by all lines so columns stay aligned; widen it when covers are in use
+    var SP = Math.max(clamp(parseInt(s.spacing, 10) || 210, 140, 600), anyCover ? CG.MINSP : RING_GEOM.MINSP);
     var titleLines = s.showTitle !== false && s.title ? wrap(s.title, 18, 2) : [];
     var top = titleLines.length ? 40 + titleLines.length * 70 + (s.subtitle ? 44 : 0) : 20;
     var pos = new Map(), lines = [], y = top, right = 0, bottom = 0;
     data.lines.forEach(function (line) {
       var pts = data.points.filter(function (p) { return p._line === line.id; });
       var startPt = line.start && pos.get(line.start);
+      // a line with any covers on it gets the taller rows covers need
+      var LG = pts.some(function (p) { return p._cover; }) ? CG : RING_GEOM;
+      var TRACK = LG.TRACK, ABOVE = LG.ABOVE, BELOW = LG.BELOW;
       var minT = 0, maxT = 0;
       pts.forEach(function (p) { minT = Math.min(minT, p._track); maxT = Math.max(maxT, p._track); });
       // A line placed by hand (dragged in the editor) keeps its spot; others stack below each other.
@@ -221,7 +227,7 @@
       pts.forEach(function (p, i) {
         pos.set(p.id, { x: tx + (i + 1) * SP, y: y0 + p._track * TRACK, y0: y0, line: line, p: p });
       });
-      var rec = { line: line, x: tx, y: y0, pts: pts, start: startPt || null, SP: SP, manual: manual };
+      var rec = { line: line, x: tx, y: y0, pts: pts, start: startPt || null, SP: SP, manual: manual, G: LG };
       lines.push(rec);
       if (!manual) y = y0 + maxT * TRACK + BELOW + GAP;
       bottom = Math.max(bottom, y0 + maxT * TRACK + BELOW + GAP);
@@ -250,7 +256,7 @@
     });
     var width = Math.max(right + 40, 700);
     lines.forEach(function (L) { L.endX = L.line.continues ? width : L.lastMainX; });
-    return { pos: pos, lines: lines, width: width, height: y + 10, top: top, titleLines: titleLines, SP: SP, G: G };
+    return { pos: pos, lines: lines, width: width, height: y + 10, top: top, titleLines: titleLines, SP: SP, G: CG };
   }
 
   function arrowPath(tip, from, size) {
@@ -307,7 +313,7 @@
   }
 
   function drawMap(data, L, img) {
-    var s = data.settings, SP = L.SP, G = L.G, TRACK = G.TRACK, out = [];
+    var s = data.settings, SP = L.SP, G = L.G, out = [];   // G: cover sizes, for the points shown as covers
     // The area a cover and the text under it take up, around its centre
     var coverBox = function (P) { return { l: P.x - G.CW / 2 - 6, r: P.x + G.CW / 2 + 6, t: P.y - G.CH / 2 - 6, b: P.y + G.CH / 2 + 84 }; };
     // Title
@@ -321,7 +327,7 @@
     // Where a line begins from a station on another line
     L.lines.forEach(function (R) {
       if (!R.start) return;
-      var sx = R.start.x, sy = R.start.y + (G.covers ? G.CH / 2 + 90 : R_ST + 4), ex = R.x, ey = R.y - R_T - 4, my = (sy + ey) / 2;
+      var sx = R.start.x, sy = R.start.y + (R.start.p._cover ? G.CH / 2 + 90 : R_ST + 4), ex = R.x, ey = R.y - R_T - 4, my = (sy + ey) / 2;
       var sd = 'M' + r1(sx) + ',' + r1(sy) + 'C' + r1(sx) + ',' + r1(my) + ' ' + r1(ex) + ',' + r1(my) + ' ' + r1(ex) + ',' + r1(ey);
       var style = R.line.startStyle || 'dashed', dash = style === 'dashed' ? '7 7' : DASH[style] || '';
       var note = '';
@@ -337,7 +343,7 @@
     L.lines.forEach(function (R) {
       var c = R.line._color, g = per.get(R.line.id);
       R.branches.forEach(function (b) {
-        var yt = R.y + b.track * TRACK, xa = b.from ? b.from.x : R.x;
+        var yt = R.y + b.track * R.G.TRACK, xa = b.from ? b.from.x : R.x;
         var pts = [[xa, R.y], [xa, yt]];
         if (b.to) pts.push([b.to.x, yt], [b.to.x, R.y]);
         else pts.push([b.last.x + SP * 0.6, yt]);
@@ -353,19 +359,12 @@
       var vertical = Math.abs(dy) > Math.abs(dx) * 0.35;
       var c1 = vertical ? [a.x, a.y + dy * 0.5] : [a.x + dx * 0.5, a.y], c2 = vertical ? [b.x, b.y - dy * 0.5] : [b.x - dx * 0.5, b.y];
       var off = function (p, q, d) { var l = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1; return [p[0] + (q[0] - p[0]) * d / l, p[1] + (q[1] - p[1]) * d / l]; };
-      var A, B;
-      if (G.covers) {
-        // leave from the edge of the cover (or the text under it) instead of its centre
-        A = boxEdge([a.x, a.y], c1, coverBox(a));
-        B = boxEdge([b.x, b.y], c2, coverBox(b));
-        B = off(B, c2, 4);
-      } else {
-        A = off([a.x, a.y], c1, R_ST + 5);
-        B = off([b.x, b.y], c2, R_ST + 5);
-      }
+      // each end leaves from the edge of its cover (or the text under it), or from just outside its ring
+      var A = a.p._cover ? boxEdge([a.x, a.y], c1, coverBox(a)) : off([a.x, a.y], c1, R_ST + 5);
+      var B = b.p._cover ? off(boxEdge([b.x, b.y], c2, coverBox(b)), c2, 4) : off([b.x, b.y], c2, R_ST + 5);
       var d = 'M' + r1(A[0]) + ',' + r1(A[1]) + 'C' + r1(c1[0]) + ',' + r1(c1[1]) + ' ' + r1(c2[0]) + ',' + r1(c2[1]) + ' ' + r1(B[0]) + ',' + r1(B[1]);
       var dash = DASH[t.style || 'dashed'], note = '';
-      if (G.covers && c.note) {
+      if (c.note && (s.display === 'covers' || a.p._cover || b.p._cover)) {
         // write the note along the link, like the notes on a hand-made chart
         var m = [(A[0] + 3 * c1[0] + 3 * c2[0] + B[0]) / 8, (A[1] + 3 * c1[1] + 3 * c2[1] + B[1]) / 8];
         var nl = wrap(c.note, 26, 3);
@@ -389,7 +388,7 @@
     // Stations
     L.pos.forEach(function (P, id) {
       var p = P.p, x = P.x, y = P.y, c = P.line._color, h = '', st = per.get(P.line.id).st;
-      if (G.covers) { st.push(drawCover(P, id, G, img)); return; }
+      if (p._cover) { st.push(drawCover(P, id, G, img)); return; }
       var pic = p.mapImage && p.images[0];
       if (pic) {
         h += '<image href="' + esc(img(pic.src)) + '" x="' + (x - 10) + '" y="' + (y - 84) + '" width="' + (SP - 24) + '" height="62" preserveAspectRatio="xMinYMax meet"/>';
