@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>Timeline Editor</title>
-<link rel="stylesheet" href="timeline/timeline.css">
 <style>
   :root {
     --bg: #f1f2f0; --surface: #ffffff; --band: #f5f6f4; --ink: #15181b; --ink-2: #4b535a; --muted: #767f87;
@@ -186,10 +185,8 @@
 </div>
 <div class="ed-toast" id="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="timeline/timeline-data.js"></script>
-<script src="timeline/timeline.js"></script>
 <script>
-(function () {
+window.__startEditor = function () {
   'use strict';
   var CT = window.ConnectedTimeline;
   var HAS_FS = typeof window.showDirectoryPicker === 'function';
@@ -255,7 +252,7 @@
     if (!src) return '';
     if (S.imageUrls.has(src)) return S.imageUrls.get(src);
     if (/^(data:|blob:|https?:|\/)/i.test(src)) return src;
-    return 'timeline/' + src;
+    return window.TL_BASE + src;
   }
   function laneOf(id) { return S.data.lines.find(function (l) { return l.id === id; }) || S.data.lines[0]; }
   function typeOf(id) { return S.data.types.find(function (t) { return t.id === id; }) || S.data.types[0]; }
@@ -1147,6 +1144,33 @@
   }
   setDirty(false);
   render();
+};
+</script>
+<script>
+// Finds the timeline files whether this editor sits next to the timeline folder or inside it.
+(function () {
+  function load(base, onFail) {
+    var data = document.createElement('script');
+    data.src = base + 'timeline-data.js';
+    data.onerror = onFail;
+    data.onload = function () {
+      var css = document.createElement('link');
+      css.rel = 'stylesheet';
+      css.href = base + 'timeline.css';
+      document.head.appendChild(css);
+      var js = document.createElement('script');
+      js.src = base + 'timeline.js';
+      js.onload = function () { window.TL_BASE = base; window.__startEditor(); };
+      js.onerror = onFail;
+      document.body.appendChild(js);
+    };
+    document.body.appendChild(data);
+  }
+  load('timeline/', function () {
+    load('', function () {
+      document.getElementById('status').textContent = 'Can’t find timeline.js. Put this editor inside your timeline folder, or next to it.';
+    });
+  });
 })();
 </script>
 </body>
