@@ -346,7 +346,7 @@
     var self = this, root = this.root, o = this.opts;
     root.classList.add('ctl');
     if (o.theme) root.setAttribute('data-theme', o.theme);
-    if (o.height) root.style.setProperty('--ctl-height', /^\d+$/.test(String(o.height)) ? o.height + 'px' : o.height);
+    if (o.height) this._setHeight(o.height);
     var coarse = global.matchMedia && global.matchMedia('(pointer: coarse)').matches;
     root.innerHTML =
       '<div class="ctl-stage">' +
@@ -457,6 +457,14 @@
     else global.addEventListener('resize', this._onWin = function () { self._resize(); });
   };
 
+  // A number (pixels), any CSS height, or "full" to fill the whole browser window edge to edge.
+  P._setHeight = function (h) {
+    var full = String(h).trim().toLowerCase() === 'full';
+    this.root.classList.toggle('ctl-full', full);
+    if (full) this.root.style.removeProperty('--ctl-height');
+    else this.root.style.setProperty('--ctl-height', /^\d+$/.test(String(h)) ? h + 'px' : String(h));
+  };
+
   P._resize = function (refit) {
     var W = this.stage.clientWidth, H = this.stage.clientHeight;
     if (!W || !H || !this.L) return;
@@ -475,9 +483,7 @@
     var s = this.data.settings, self = this;
     if (!this._inited) this.viewMode = s.view === 'list' ? 'list' : 'map';
     if (!this.opts.theme) this.root.setAttribute('data-theme', s.theme === 'paper' ? 'paper' : 'night');
-    if (s.height && !this.opts.height && !this.root.style.getPropertyValue('--ctl-height')) {
-      this.root.style.setProperty('--ctl-height', /^\d+$/.test(String(s.height)) ? s.height + 'px' : s.height);
-    }
+    if (s.height && !this.opts.height) this._setHeight(s.height);
     if (this.selected && !this.data.byId.has(this.selected)) this.selected = null;
     this.L = layout(this.data);
     this.world.innerHTML = drawMap(this.data, this.L, function (src) { return self._img(src); });

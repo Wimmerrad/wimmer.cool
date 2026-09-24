@@ -9,7 +9,7 @@ window.TIMELINE_DATA = {
     "showTitle": true,
     "spacing": 210,
     "theme": "night",
-    "height": 760
+    "height": "full"
   },
   "lines": [
     {

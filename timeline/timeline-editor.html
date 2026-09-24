@@ -606,7 +606,8 @@
       '<label class="ed-field"><span>View when the page opens</span><select data-sf="view">' +
         '<option value="map"' + (s.view !== 'list' ? ' selected' : '') + '>Map</option>' +
         '<option value="list"' + (s.view === 'list' ? ' selected' : '') + '>List</option></select></label>' +
-      '<label class="ed-field"><span>Height on your page (pixels)</span><input type="number" min="380" step="10" data-sf="height" value="' + esc(s.height || 720) + '"></label>' +
+      '<label class="ed-check"><input type="checkbox" data-sf="fullHeight"' + (s.height === 'full' ? ' checked' : '') + '> Fill the whole browser window (no border, no rounded corners)</label>' +
+      '<label class="ed-field"' + (s.height === 'full' ? ' hidden' : '') + '><span>Height on your page (pixels)</span><input type="number" min="380" step="10" data-sf="height" value="' + esc(s.height === 'full' ? 720 : (s.height || 720)) + '"></label>' +
       '<section class="ed-section"><h3>Add the timeline to a page</h3><p class="ed-note">Copy the <code>timeline</code> folder into your site, then paste this where the timeline should appear:</p>' +
       '<div class="ed-code"><pre id="snippet">' + esc(snippet) + '</pre><button type="button" class="ed-btn small" data-a="copy-snippet">Copy</button></div></section>' +
       '<section class="ed-section"><h3>Start over</h3><p class="ed-note">Removes every point and connection but keeps your lines, kinds and settings. You can undo this.</p>' +
@@ -768,10 +769,12 @@
     } else if ((f = t.dataset.sf)) {
       mutate(function (d) {
         if (f === 'showTitle') d.settings.showTitle = t.checked;
+        else if (f === 'fullHeight') d.settings.height = t.checked ? 'full' : 720;
         else if (f === 'height') { var h = parseInt(t.value, 10); if (h >= 360) d.settings.height = h; }
         else d.settings[f] = t.value;
       }, 'set:' + f);
       if (f === 'view') tl.setView(t.value);
+      if (f === 'fullHeight') render();
     } else if (t.dataset.a === 'color-custom') {
       setColor(t, t.value, 'custom');
     }
