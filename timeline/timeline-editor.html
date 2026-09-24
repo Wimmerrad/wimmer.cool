@@ -769,8 +769,13 @@ window.__startEditor = function () {
         return '<option value="' + esc(p.id) + '"' + (l.start === p.id ? ' selected' : '') + '>Below “' + esc(p.title || 'Untitled') + '” (' + esc(laneOf(p.line).label || '') + ')</option>';
       }).join('');
       h += '<div class="ed-card" data-lcard="' + id + '"><div class="ed-grid" style="grid-template-columns:0.7fr 1.6fr">' +
-        '<label>Label in the circle<input data-lnf="label" data-lid="' + id + '" value="' + esc(l.label || '') + '" maxlength="8" placeholder="e.g. U.C."></label>' +
+        '<label>Label in the circle<input data-lnf="label" data-lid="' + id + '" value="' + esc(l.label || '') + '" maxlength="30" placeholder="e.g. U.C."></label>' +
         '<label>Name<input data-lnf="name" data-lid="' + id + '" value="' + esc(l.name || '') + '" placeholder="e.g. Universal Century"></label></div>' +
+        '<label class="ed-field" style="margin-top:6px"><span>Text in the circle</span><select data-lnf="circleText" data-lid="' + id + '">' +
+          '<option value=""' + (!l.circleText ? ' selected' : '') + '>Label, with the name small under it</option>' +
+          '<option value="label"' + (l.circleText === 'label' ? ' selected' : '') + '>Only the label, as big as fits</option>' +
+          '<option value="name"' + (l.circleText === 'name' ? ' selected' : '') + '>Only the name, as big as fits</option></select>' +
+          '<small>With one text only, longer words fit: it wraps and shrinks to fill the circle.</small></label>' +
         '<div class="ed-field" style="margin-top:6px"><span>Colour</span>' + swatches('data-lid', l.id, l.color) + '</div>' +
         '<label class="ed-field"><span>Where it starts</span><select data-lnf="start" data-lid="' + id + '">' + startOpts + '</select></label>' +
         (l.start ? '<div class="ed-grid" style="grid-template-columns:1fr 1fr;margin-bottom:10px">' +
@@ -1100,6 +1105,7 @@ window.__startEditor = function () {
         if (f === 'continues') { if (t.checked) delete ln.continues; else ln.continues = false; }
         else if (f === 'start') { if (t.value) ln.start = t.value; else delete ln.start; }
         else if (f === 'startShape') { if (t.value) ln.startShape = t.value; else delete ln.startShape; }
+        else if (f === 'circleText') { if (t.value) ln.circleText = t.value; else delete ln.circleText; }
         else ln[f] = t.value;
       }, 'lane:' + lid + ':' + f);
       if (f === 'start' || f === 'startShape') render();   // shows or hides the drop line options

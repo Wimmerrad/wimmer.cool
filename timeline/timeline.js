@@ -330,6 +330,18 @@
 
   // The area a cover and the text under it take up, around its centre
   function coverBoxOf(P, G) { return { l: P.x - G.CW / 2 - 6, r: P.x + G.CW / 2 + 6, t: P.y - G.CH / 2 - 6, b: P.y + coverBottom(P.p, G) }; }
+  // The biggest font that fits a text inside a main point's circle, and its lines.
+  function fitCircle(text) {
+    for (var fs = 25; fs > 9; fs--) {
+      var lh = Math.round(fs * 1.05), cw = 0.55 * fs, max = Math.floor((2 * R_T - 10) / cw);   // cw: about one letter's width
+      var lines = wrap(text, max, 4), h = lines.length * lh;
+      var widest = lines.reduce(function (m, s) { return Math.max(m, s.length); }, 0);
+      // the top and bottom lines have less room, so check the circle's width at their height
+      var room = 2 * Math.sqrt(Math.max(0, R_T * R_T - Math.pow(h / 2, 2))) - 6;
+      if (widest * cw <= Math.max(room, 0) && h <= 2 * R_T * 0.8 && (/…/.test(text) || !/…/.test(lines.join('')))) return { fs: fs, lh: lh, lines: lines };
+    }
+    return { fs: 9, lh: 10, lines: wrap(text, 12, 5) };
+  }
   function coverFrameOf(P, G) { return { l: P.x - G.CW / 2 - 6, r: P.x + G.CW / 2 + 6, t: P.y - G.CH / 2 - 6, b: P.y + G.CH / 2 + 6 }; }
   // How far below its centre a cover's text ends (same steps as drawCover)
   function coverBottom(p, G) {
@@ -505,13 +517,19 @@
     });
     // Line terminals
     L.lines.forEach(function (R) {
-      var l = R.line, fg = onColor(l.color), label = String(l.label || '');
-      var fs = label.length <= 4 ? 25 : label.length <= 6 ? 19 : 15;
-      var name = wrap(l.name || '', 11, 2);
+      var l = R.line, fg = onColor(l.color), label = String(l.label || ''), inner;
+      var only = l.circleText === 'label' ? label : l.circleText === 'name' ? String(l.name || label) : null;
+      if (only !== null) {   // one text that fills the whole circle, on up to 4 lines
+        var ft = fitCircle(only);
+        inner = textLines(ft.lines, R.x, R.y + (ft.lines.length - 1) * ft.lh / 2 + ft.fs / 3, ft.lh, 'class="ctl-term-label" text-anchor="middle" font-size="' + ft.fs + '" fill="' + fg + '"');
+      } else {   // the label big, the name small under it
+        var fs = Math.round(Math.min(25, Math.max(11, 64 / (0.6 * Math.max(1, label.length)))));
+        var name = wrap(l.name || '', 11, 2);
+        inner = '<text class="ctl-term-label" x="' + R.x + '" y="' + (R.y + (name.length ? -3 : fs / 3)) + '" text-anchor="middle" font-size="' + fs + '" fill="' + fg + '">' + esc(label) + '</text>' +
+          (name.length ? textLines(name, R.x, R.y + (name.length > 1 ? 24 : 15), 11, 'class="ctl-term-name" text-anchor="middle" font-size="10" fill="' + fg + '"') : '');
+      }
       per.get(l.id).term = ('<g class="ctl-term" data-line="' + esc(l.id) + '"><circle cx="' + R.x + '" cy="' + R.y + '" r="' + R_T + '" fill="' + l._color + '"/>' +
-        '<text class="ctl-term-label" x="' + R.x + '" y="' + (R.y + (name.length ? -3 : fs / 3)) + '" text-anchor="middle" font-size="' + fs + '" fill="' + fg + '">' + esc(label) + '</text>' +
-        (name.length ? textLines(name, R.x, R.y + (name.length > 1 ? 24 : 15), 11, 'class="ctl-term-name" text-anchor="middle" font-size="10" fill="' + fg + '"') : '') +
-        '<title>' + esc(l.name || label) + '</title></g>');
+        inner + '<title>' + esc(l.name || label) + '</title></g>');
     });
     // Stations
     L.pos.forEach(function (P, id) {
