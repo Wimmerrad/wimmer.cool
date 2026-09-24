@@ -14,57 +14,35 @@ window.TIMELINE_DATA = {
   "lines": [
     {
       "id": "mech",
-      "label": "MECH",
-      "name": "Mechanical age",
-      "color": "orange",
+      "label": "",
+      "name": "Getter Robo",
+      "color": "red",
       "pos": {
-        "x": 80,
-        "y": 530
-      }
+        "x": 130,
+        "y": 650
+      },
+      "continues": false
     },
     {
       "id": "theory",
-      "label": "IDEA",
-      "name": "Ideas & logic",
+      "label": "",
+      "name": "Brain's Base OVA Trilogy",
       "color": "red",
-      "start": "analytical-engine",
       "pos": {
-        "x": 320,
-        "y": 990
+        "x": 1030,
+        "y": 1020
       }
     },
     {
-      "id": "elec",
-      "label": "ELEC",
-      "name": "Electronic era",
-      "color": "sky",
-      "start": "turing",
+      "id": "new-line",
+      "label": "Toei",
+      "name": "",
+      "color": "orange",
       "pos": {
-        "x": 1120,
-        "y": 770
-      }
-    },
-    {
-      "id": "chips",
-      "label": "CHIP",
-      "name": "Components",
-      "color": "gold",
-      "start": "eniac",
-      "pos": {
-        "x": 1960,
-        "y": 1062
-      }
-    },
-    {
-      "id": "net",
-      "label": "NET",
-      "name": "Networks",
-      "color": "green",
-      "start": "manchester-baby",
-      "pos": {
-        "x": 2170,
-        "y": 1258
-      }
+        "x": 130,
+        "y": 1010
+      },
+      "continues": false
     }
   ],
   "types": [
@@ -107,19 +85,13 @@ window.TIMELINE_DATA = {
     {
       "id": "jacquard",
       "line": "mech",
-      "title": "Jacquard loom",
-      "date": "1804",
-      "circa": true,
-      "caption": "Punched cards steer a loom",
-      "summary": "A chain of punched cards tells a loom which threads to lift, so intricate patterns can be woven automatically.",
-      "description": "Joseph Marie Jacquard's attachment read one card per row of the weave. Changing the pattern meant swapping the cards, not rebuilding the machine: an early form of a replaceable program.",
+      "title": "Getter Robo",
+      "date": "1974",
+      "summary": "First entry in the Getter Robo Saga",
       "images": [
         {
           "src": "images/getterrobo-2.webp"
         }
-      ],
-      "tags": [
-        "punched cards"
       ],
       "mapImage": true,
       "look": "cover"
@@ -127,8 +99,8 @@ window.TIMELINE_DATA = {
     {
       "id": "difference-engine",
       "line": "mech",
-      "title": "Difference Engine",
-      "date": "1822",
+      "title": "Getter Robo G",
+      "date": "1975",
       "summary": "Charles Babbage proposes a mechanical calculator to compute and print mathematical tables without human error.",
       "images": [
         {
@@ -140,9 +112,8 @@ window.TIMELINE_DATA = {
     {
       "id": "analytical-engine",
       "line": "mech",
-      "title": "Analytical Engine",
-      "date": "1837",
-      "caption": "Designed, never finished",
+      "title": "Getter Robo Go",
+      "date": "1991",
       "summary": "Babbage designs a general-purpose mechanical computer, with a “store” for memory and a “mill” for arithmetic.",
       "description": "The engine was to be programmed with punched cards borrowed from the Jacquard loom. It was never completed in Babbage's lifetime, but its design already separated memory, processing, input and output.",
       "links": [
@@ -162,9 +133,8 @@ window.TIMELINE_DATA = {
     {
       "id": "hollerith",
       "line": "mech",
-      "title": "Hollerith tabulator",
-      "date": "1890",
-      "caption": "Counts the U.S. census",
+      "title": "Shin Getter Robo",
+      "date": "1997",
       "summary": "Electric punched-card tabulators count the 1890 U.S. census far faster than hand tallying.",
       "description": "Herman Hollerith's company later merged into the firm that became IBM in 1924.",
       "tags": [
@@ -236,205 +206,201 @@ window.TIMELINE_DATA = {
       "summary": "John von Neumann describes a computer that keeps its program in the same memory as its data."
     },
     {
-      "id": "z3",
-      "line": "elec",
-      "track": -1,
-      "title": "Zuse Z3",
-      "date": "1941-05-12",
-      "caption": "Germany, built from relays",
-      "summary": "Konrad Zuse's relay-based Z3, the first working programmable, fully automatic digital computer, is demonstrated in Berlin."
-    },
-    {
-      "id": "colossus",
-      "line": "elec",
-      "track": 1,
-      "title": "Colossus",
-      "date": "1944-02",
-      "caption": "Britain, wartime code-breaking",
-      "summary": "At Bletchley Park, the first programmable electronic digital computer helps break German teleprinter ciphers."
-    },
-    {
-      "id": "eniac",
-      "line": "elec",
-      "title": "ENIAC",
-      "date": "1946-02",
-      "end": "1955-10",
-      "caption": "Programmed by rewiring",
-      "summary": "The first programmable, general-purpose electronic digital computer is unveiled in Philadelphia and runs until 1955.",
-      "description": "ENIAC was programmed by setting switches and rewiring plugboards, a job done largely by its six original programmers."
-    },
-    {
-      "id": "manchester-baby",
-      "line": "elec",
-      "title": "Manchester Baby",
-      "date": "1948-06-21",
-      "caption": "First stored program runs",
-      "summary": "The Small-Scale Experimental Machine becomes the first electronic stored-program computer to run a program."
-    },
-    {
-      "id": "alto",
-      "line": "elec",
-      "title": "Xerox Alto",
-      "date": "1973",
-      "summary": "Xerox PARC's Alto pairs a mouse and a windowed graphical display with Ethernet networking."
-    },
-    {
-      "id": "macintosh",
-      "line": "elec",
-      "title": "Macintosh",
-      "date": "1984-01-24",
-      "caption": "Windows and a mouse for everyone",
-      "summary": "Apple brings the mouse-driven graphical interface pioneered at Xerox PARC to a mass-market personal computer."
-    },
-    {
-      "id": "transistor",
-      "line": "chips",
-      "title": "The transistor",
-      "date": "1947-12",
-      "caption": "Replaces the vacuum tube",
-      "summary": "At Bell Labs, John Bardeen and Walter Brattain build the first working transistor.",
+      "id": "getter-robo-arc",
+      "title": "Getter Robo Arc",
+      "date": "2001",
+      "line": "mech",
+      "look": "cover",
       "images": [
         {
-          "src": "images/transistor.svg",
-          "caption": "The transistor's circuit symbol.",
-          "credit": "Illustration"
+          "src": "images/getterroboarc.jpg"
         }
       ]
     },
     {
-      "id": "ic",
-      "line": "chips",
-      "title": "Integrated circuit",
-      "date": "1958-09-12",
-      "summary": "Jack Kilby at Texas Instruments demonstrates a working integrated circuit; Robert Noyce devises a practical silicon version months later."
-    },
-    {
-      "id": "intel-4004",
-      "line": "chips",
-      "title": "Intel 4004",
-      "date": "1971-11-15",
-      "caption": "A whole CPU on one chip",
-      "summary": "The first commercially available single-chip microprocessor."
-    },
-    {
-      "id": "arpanet",
-      "line": "net",
-      "title": "ARPANET",
-      "date": "1969-10-29",
-      "caption": "“LO”, then a crash",
-      "summary": "A login attempt travels from UCLA to the Stanford Research Institute. The system crashes after two letters.",
+      "id": "getter-robo-saga",
+      "title": "Getter Robo Saga",
+      "date": "1804",
+      "pos": {
+        "x": 350,
+        "y": 300
+      },
+      "look": "cover",
       "images": [
         {
-          "src": "images/arpanet-1969.svg",
-          "caption": "The four ARPANET sites connected by December 1969.",
-          "credit": "Illustration"
+          "src": "images/getterrobosaga.jpg"
         }
-      ]
-    },
-    {
-      "id": "tcp",
-      "line": "net",
-      "title": "TCP described",
-      "date": "1974-05",
-      "summary": "Vint Cerf and Bob Kahn publish “A Protocol for Packet Network Intercommunication”, the basis of TCP/IP."
-    },
-    {
-      "id": "www",
-      "line": "net",
-      "title": "World Wide Web",
-      "date": "1989-03",
-      "caption": "Proposed at CERN",
-      "summary": "Tim Berners-Lee proposes a hypertext system for sharing documents over the internet.",
-      "links": [
-        {
-          "label": "The original proposal",
-          "url": "https://www.w3.org/History/1989/proposal.html"
-        }
-      ]
+      ],
+      "summary": "Compilation of Getter Robo, G, Go, Shin, and Arc",
+      "line": "mech"
     },
     {
       "id": "new-point",
       "title": "New point",
-      "date": "1891",
-      "line": "mech"
+      "date": "1974",
+      "line": "new-line",
+      "look": "cover",
+      "images": [
+        {
+          "src": "images/getterrobotoei.jpg"
+        }
+      ]
+    },
+    {
+      "id": "new-point-2",
+      "title": "New point",
+      "date": "1975",
+      "line": "new-line",
+      "look": "cover",
+      "images": [
+        {
+          "src": "images/getterrobogtoei.jpg"
+        }
+      ]
+    },
+    {
+      "id": "new-point-3",
+      "title": "New point",
+      "date": "1991",
+      "line": "new-line",
+      "look": "cover",
+      "images": [
+        {
+          "src": "images/getterrobogoanime.webp"
+        }
+      ]
+    },
+    {
+      "id": "getter-robo-movie",
+      "title": "Getter Robo (Movie)",
+      "date": "1974",
+      "pos": {
+        "x": 140,
+        "y": 1340
+      },
+      "line": "new-line",
+      "look": "cover",
+      "images": [
+        {
+          "src": "images/gettermovie.jpg"
+        }
+      ]
+    },
+    {
+      "id": "great-mazinger-vs-getter-robo-g-kuuchuu-dai-geki",
+      "title": "Great Mazinger vs. Getter Robo G: Kuuchuu Dai-Gekitotsu",
+      "date": "1975",
+      "pos": {
+        "x": 570,
+        "y": 1340
+      },
+      "line": "new-line",
+      "look": "cover",
+      "images": [
+        {
+          "src": "images/greatgetterg.webp"
+        }
+      ]
+    },
+    {
+      "id": "grendizer-getter-robo-g-great-mazinger-kessen-da",
+      "title": "Grendizer: Getter Robo G - Great Mazinger Kessen! Daikaijuu",
+      "date": "1976",
+      "pos": {
+        "x": 790,
+        "y": 1340
+      },
+      "line": "new-line",
+      "look": "cover",
+      "images": [
+        {
+          "src": "images/grendizergettergreat.jpg"
+        }
+      ]
+    },
+    {
+      "id": "great-mazinger-vs-getter-robo",
+      "title": "Great Mazinger vs. Getter Robo",
+      "date": "1975",
+      "pos": {
+        "x": 350,
+        "y": 1340
+      },
+      "line": "new-line",
+      "look": "cover",
+      "images": [
+        {
+          "src": "images/greatgetter.webp"
+        }
+      ]
     }
   ],
   "connections": [
     {
       "id": "c1",
       "from": "jacquard",
-      "to": "analytical-engine",
-      "type": "influenced",
-      "note": "Babbage planned to program his engine with Jacquard-style punched cards."
+      "to": "getter-robo-saga",
+      "type": "led-to",
+      "fromEnd": [
+        0,
+        -119
+      ],
+      "toEnd": [
+        0,
+        157
+      ]
     },
     {
       "id": "c2",
-      "from": "jacquard",
+      "from": "analytical-engine",
       "to": "hollerith",
-      "type": "influenced",
-      "note": "Hollerith used punched cards to store data rather than patterns."
-    },
-    {
-      "id": "c3",
-      "from": "boole",
-      "to": "shannon",
-      "type": "led-to",
-      "note": "Shannon applied Boole's algebra to switching circuits."
-    },
-    {
-      "id": "c4",
-      "from": "hollerith",
-      "to": "eniac",
-      "type": "influenced",
-      "note": "ENIAC read and punched IBM cards for input and output."
-    },
-    {
-      "id": "c5",
-      "from": "edvac-report",
-      "to": "manchester-baby",
-      "type": "led-to",
-      "note": "The Baby was built to test a stored-program memory."
-    },
-    {
-      "id": "c6",
-      "from": "turing",
-      "to": "manchester-baby",
-      "type": "people",
-      "note": "Turing joined the Manchester computing lab later in 1948."
-    },
-    {
-      "id": "c7",
-      "from": "z3",
-      "to": "colossus",
-      "type": "parallel",
-      "note": "Built independently, on opposite sides of the war."
-    },
-    {
-      "id": "c8",
-      "from": "intel-4004",
-      "to": "macintosh",
-      "type": "led-to",
-      "note": "Personal computers were built around single-chip microprocessors."
-    },
-    {
-      "id": "c9",
-      "from": "alto",
-      "to": "macintosh",
-      "type": "influenced",
-      "note": "Apple engineers toured Xerox PARC in 1979."
-    },
-    {
-      "id": "c10",
-      "from": "arpanet",
-      "to": "tcp",
       "type": "led-to"
     },
     {
-      "id": "c11",
-      "from": "tcp",
-      "to": "www",
-      "type": "led-to",
-      "note": "The Web runs on top of the internet's TCP/IP."
+      "id": "c3",
+      "from": "jacquard",
+      "to": "new-point",
+      "type": "parallel",
+      "note": "Loose adaptation"
+    },
+    {
+      "id": "c4",
+      "from": "difference-engine",
+      "to": "new-point-2",
+      "type": "parallel",
+      "note": "Loose adaptation"
+    },
+    {
+      "id": "c5",
+      "from": "analytical-engine",
+      "to": "new-point-3",
+      "type": "parallel",
+      "note": "Loose adaptation"
+    },
+    {
+      "id": "c6",
+      "from": "new-point",
+      "to": "getter-robo-movie",
+      "type": "parallel",
+      "note": "Theatrical release of episode 6"
+    },
+    {
+      "id": "c7",
+      "from": "new-point-2",
+      "to": "great-mazinger-vs-getter-robo-g-kuuchuu-dai-geki",
+      "type": "parallel"
+    },
+    {
+      "id": "c8",
+      "from": "new-point-2",
+      "to": "grendizer-getter-robo-g-great-mazinger-kessen-da",
+      "type": "parallel"
+    },
+    {
+      "id": "c9",
+      "from": "new-point",
+      "to": "great-mazinger-vs-getter-robo",
+      "type": "parallel"
     }
   ],
   "music": [
