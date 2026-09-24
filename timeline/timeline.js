@@ -39,7 +39,11 @@
     close: '<svg class="ctl-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>',
     left: '<svg class="ctl-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5"/></svg>',
     right: '<svg class="ctl-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg>',
-    out: '<svg class="ctl-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M9 3h4v4M13 3 7 9M11 9.5V13H3V5h3.5"/></svg>'
+    out: '<svg class="ctl-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M9 3h4v4M13 3 7 9M11 9.5V13H3V5h3.5"/></svg>',
+    play: '<svg class="ctl-i ctl-fill" viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3.2v9.6L12.8 8z"/></svg>',
+    pause: '<svg class="ctl-i ctl-fill" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 3h2.6v10H4.5zM8.9 3h2.6v10H8.9z"/></svg>',
+    prevTrack: '<svg class="ctl-i ctl-fill" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 3h1.8v10H3.5zM13 3.2v9.6L6.2 8z"/></svg>',
+    nextTrack: '<svg class="ctl-i ctl-fill" viewBox="0 0 16 16" aria-hidden="true"><path d="M10.7 3h1.8v10h-1.8zM3 3.2v9.6L9.8 8z"/></svg>'
   };
 
   // ---------- helpers ----------
@@ -338,18 +342,44 @@
     var corners = bends || savedBends(c) || autoBends(a, b);
     var first = corners.length ? corners[0] : [b.x, b.y], last = corners.length ? corners[corners.length - 1] : [a.x, a.y];
     var pts = [endA(first)].concat(corners, [endB(last)]);
-    // the note sits halfway along the whole path
+    return { straight: true, corners: corners, pts: pts, A: pts[0], B: pts[pts.length - 1], tail: last, mid: pathMid(pts), d: polyD(pts) };
+  }
+
+  function polyD(pts) { return 'M' + pts.map(function (q) { return r1(q[0]) + ',' + r1(q[1]); }).join('L'); }
+  // The point halfway along a path of straight segments (where its note goes).
+  function pathMid(pts) {
     var total = 0, lens = [];
     for (var i = 1; i < pts.length; i++) { var l = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); lens.push(l); total += l; }
-    var half = total / 2, mid = pts[0];
+    var half = total / 2;
     for (var j = 0; j < lens.length; j++) {
-      if (half <= lens[j]) { var k = lens[j] ? half / lens[j] : 0; mid = [pts[j][0] + (pts[j + 1][0] - pts[j][0]) * k, pts[j][1] + (pts[j + 1][1] - pts[j][1]) * k]; break; }
+      if (half <= lens[j]) { var k = lens[j] ? half / lens[j] : 0; return [pts[j][0] + (pts[j + 1][0] - pts[j][0]) * k, pts[j][1] + (pts[j + 1][1] - pts[j][1]) * k]; }
       half -= lens[j];
     }
-    return {
-      straight: true, corners: corners, pts: pts, A: pts[0], B: pts[pts.length - 1], tail: last, mid: mid,
-      d: 'M' + pts.map(function (q) { return r1(q[0]) + ',' + r1(q[1]); }).join('L')
-    };
+    return pts[0];
+  }
+
+  // The drop line from a station down to the big circle of a main point that starts there.
+  // Curved, or straight with movable corners (startShape, else the timeline's link shape).
+  function startGeom(R, G, s, bends) {
+    var sx = R.start.x, sy = R.start.y + (R.start.p._cover ? G.CH / 2 + 90 : R_ST + 4), ex = R.x, ey = R.y - R_T - 4, my = (sy + ey) / 2;
+    if ((R.line.startShape || s.linkShape) !== 'straight') {
+      return { straight: false, mid: [(sx + ex) / 2, my], side: sx === ex,
+        d: 'M' + r1(sx) + ',' + r1(sy) + 'C' + r1(sx) + ',' + r1(my) + ' ' + r1(ex) + ',' + r1(my) + ' ' + r1(ex) + ',' + r1(ey) };
+    }
+    var m10 = Math.round(my / 10) * 10;
+    var corners = bends || savedBends({ bends: R.line.startBends }) || (Math.abs(sx - ex) < 1 ? [[sx, m10]] : [[sx, m10], [ex, m10]]);
+    var pts = [[sx, sy]].concat(corners, [[ex, ey]]), mid = pathMid(pts);
+    return { straight: true, corners: corners, pts: pts, mid: mid, side: true, d: polyD(pts) };
+  }
+  function startInner(R, geo) {
+    var l = R.line, style = l.startStyle || 'dashed', dash = style === 'dashed' ? '7 7' : DASH[style] || '', note = '';
+    if (l.startNote) {   // optional note written beside the drop line, at its middle
+      var nl = wrap(l.startNote, 26, 3);
+      note = textLines(nl, geo.mid[0] + (geo.side ? 10 : 0), geo.mid[1] + (nl.length - 1) * 7.5, 15,
+        'class="ctl-start-note" text-anchor="' + (geo.side ? 'start' : 'middle') + '" font-size="11.5" fill="' + l._color + '"');
+    }
+    return '<path class="ctl-start-hit" d="' + geo.d + '"/>' +
+      '<path class="ctl-startlink" fill="none" stroke="' + l._color + '" stroke-linejoin="' + (geo.straight ? 'miter' : 'round') + '"' + (dash ? ' stroke-dasharray="' + dash + '"' : '') + ' d="' + geo.d + '"/>' + note;
   }
 
   // Inside of one link's group: wide invisible click area, the visible line, the arrow and the note.
@@ -395,17 +425,7 @@
     // Where a line begins from a station on another line
     L.lines.forEach(function (R) {
       if (!R.start) return;
-      var sx = R.start.x, sy = R.start.y + (R.start.p._cover ? G.CH / 2 + 90 : R_ST + 4), ex = R.x, ey = R.y - R_T - 4, my = (sy + ey) / 2;
-      var sd = 'M' + r1(sx) + ',' + r1(sy) + 'C' + r1(sx) + ',' + r1(my) + ' ' + r1(ex) + ',' + r1(my) + ' ' + r1(ex) + ',' + r1(ey);
-      var style = R.line.startStyle || 'dashed', dash = style === 'dashed' ? '7 7' : DASH[style] || '';
-      var note = '';
-      if (R.line.startNote) {   // optional note written along the drop line, at its middle
-        var nl = wrap(R.line.startNote, 26, 3);
-        note = textLines(nl, (sx + ex) / 2 + (sx === ex ? 10 : 0), my + (nl.length - 1) * 7.5, 15,
-          'class="ctl-start-note" text-anchor="' + (sx === ex ? 'start' : 'middle') + '" font-size="11.5" fill="' + R.line._color + '"');
-      }
-      out.push('<g class="ctl-startg" data-line="' + esc(R.line.id) + '"><path class="ctl-start-hit" d="' + sd + '"/>' +
-        '<path class="ctl-startlink" fill="none" stroke="' + R.line._color + '"' + (dash ? ' stroke-dasharray="' + dash + '"' : '') + ' d="' + sd + '"/>' + note + '</g>');
+      out.push('<g class="ctl-startg" data-line="' + esc(R.line.id) + '">' + startInner(R, startGeom(R, G, s)) + '</g>');
     });
     // Tracks: branches first, then the main line on top
     L.lines.forEach(function (R) {
@@ -499,6 +519,15 @@
           '<button type="button" class="ctl-iconbtn" data-act="fullscreen" aria-label="Full screen" title="Full screen">' + ICON.full + '</button>' +
         '</div>' +
         '<div class="ctl-legend"></div>' +
+        '<div class="ctl-player" role="group" aria-label="Music player" hidden>' +
+          '<button type="button" class="ctl-pbtn" data-mp="prev" aria-label="Previous track" title="Previous track">' + ICON.prevTrack + '</button>' +
+          '<button type="button" class="ctl-pbtn ctl-pbtn-main" data-mp="play" aria-label="Play" title="Play">' + ICON.play + '</button>' +
+          '<button type="button" class="ctl-pbtn" data-mp="next" aria-label="Next track" title="Next track">' + ICON.nextTrack + '</button>' +
+          '<div class="ctl-track" title="">' +
+            '<div class="ctl-track-text"><span class="ctl-track-name"></span></div>' +
+            '<div class="ctl-track-bar" role="slider" aria-label="Position in the track" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0"><i></i></div>' +
+          '</div>' +
+        '</div>' +
         '<aside class="ctl-panel" aria-label="Details">' +
           '<button type="button" class="ctl-grab" data-act="grab" aria-label="Show more or less of the details"></button>' +
           '<div class="ctl-panel-top"><span class="ctl-linechip"></span><button type="button" class="ctl-iconbtn" data-act="close" aria-label="Close details">' + ICON.close + '</button></div>' +
@@ -512,6 +541,8 @@
     this.emptyEl = $('.ctl-empty'); this.listEl = $('.ctl-list'); this.tools = $('.ctl-tools');
     this.searchEl = $('.ctl-search input'); this.legend = $('.ctl-legend');
     this.panel = $('.ctl-panel'); this.panelBody = $('.ctl-panel-body'); this.panelLine = $('.ctl-linechip'); this.tip = $('.ctl-tip');
+    this.player = $('.ctl-player');
+    this._buildPlayer();
     this.hint = coarse ? 'Swipe sideways to move · pinch to zoom' : 'Drag to move · Ctrl + scroll to zoom';
     if (!root.requestFullscreen) $('[data-act="fullscreen"]').hidden = true;
 
@@ -580,13 +611,15 @@
       if (!self.opts.editable) return;
       var t = e.target.closest('.ctl-term');
       if (t && self.opts.onAddToLine) { e.preventDefault(); self.opts.onAddToLine(t.getAttribute('data-line')); return; }
-      var bend = e.target.closest('.ctl-bend'), parts = self.selectedLink && self._linkParts(self.selectedLink);
-      if (!parts || !parts.geo.straight || !self.opts.onMoveBends) return;
-      var bends = parts.geo.corners.map(function (q) { return [q[0], q[1]]; });
+      var bend = e.target.closest('.ctl-bend'), T = self._bendTarget();
+      var save = T && (T.kind === 'link' ? self.opts.onMoveBends : self.opts.onMoveStartBends);
+      if (!T || !save) return;
+      var bends = T.geo.corners.map(function (q) { return [q[0], q[1]]; });
+      var onPath = T.kind === 'link' ? e.target.closest('.ctl-link.is-selected') : e.target.closest('.ctl-startg.is-selected');
       if (bend) {
         bends.splice(+bend.getAttribute('data-i'), 1);
-      } else if (e.target.closest('.ctl-link.is-selected')) {
-        var w = self._toWorld(e), pts = parts.geo.pts, best = 0, bestD = Infinity;
+      } else if (onPath) {
+        var w = self._toWorld(e), pts = T.geo.pts, best = 0, bestD = Infinity;
         for (var i = 0; i < pts.length - 1; i++) {   // the segment nearest the double-click
           var dd = segDist(w, pts[i], pts[i + 1]);
           if (dd < bestD) { bestD = dd; best = i; }
@@ -594,7 +627,7 @@
         bends.splice(best, 0, [Math.round(w[0] / 10) * 10, Math.round(w[1] / 10) * 10]);
       } else return;
       e.preventDefault();
-      self.opts.onMoveBends(self.selectedLink, bends);
+      save(T.id, bends);
     });
     this.svg.addEventListener('keydown', function (e) {
       var g = e.target.closest && e.target.closest('.ctl-st');
@@ -725,7 +758,8 @@
     this.L = layout(this.data);
     this.world.innerHTML = drawMap(this.data, this.L, function (src) { return self._img(src); });
     this._dateBacks();
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { self._dateBacks(); });  // widths change once the font arrives
+    this._loadPlaylist();
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { self._dateBacks(); self._placePlayer(true); });  // widths change once the font arrives
     this.emptyEl.hidden = this.data.points.length > 0;
     var used = new Set(this.data.connections.filter(function (c) {
       return self.data.byId.get(c.from)._line !== self.data.byId.get(c.to)._line;
@@ -733,7 +767,7 @@
     this.legend.innerHTML = this.data.types.filter(function (t) { return used.has(t.id); }).map(function (t) {
       return '<span data-type="' + esc(t.id) + '" title="' + esc(t.description || '') + '">' + kindSample(t) + esc(t.name) + '</span>';
     }).join('') + '<span class="ctl-hint">' + (this.opts.editable
-      ? 'Double-click a line’s circle to add a point · click a circle, then drag it to move its line · click a station, then drag it onto another to connect them'
+      ? 'Double-click a main point (big circle) to add an entry to it · click a main point, then drag it to move it · click a station, then drag it onto another to connect them'
       : this.hint) + '</span>';
     this.root.classList.toggle('ctl-editable', !!this.opts.editable);
     this._syncTools();
@@ -823,6 +857,7 @@
     v.tx = mw <= W ? clamp(v.tx, -20, W - mw + 20) : clamp(v.tx, W - mw - 60, 60);
     v.ty = mh <= H ? clamp(v.ty, -20, Math.max(H - mh + 20, 44)) : clamp(v.ty, H - mh - 60, 60);
     this.world.setAttribute('transform', 'translate(' + r1(v.tx) + ' ' + r1(v.ty) + ') scale(' + Math.round(v.s * 1000) / 1000 + ')');
+    this._placePlayer();
   };
 
   // whole=true fits everything; otherwise fill the width (never tinier than 55%) and start at the top-left.
@@ -893,10 +928,10 @@
     setTimeout(function () { self._pointerFocus = false; }, 0);
     // Editor only: a line's circle drags the whole line; a station drags out a new connection.
     if (this.opts.editable && this.viewMode === 'map' && !this.pointers.size) {
-      var bend = e.target.closest('.ctl-bend'), bp = bend && this._linkParts(this.selectedLink);
-      if (bp) {   // dragging a corner of the selected straight link
-        this.edit = { kind: 'bend', id: this.selectedLink, idx: +bend.getAttribute('data-i'), pid: e.pointerId, x: e.clientX, y: e.clientY, moved: false,
-          bends: bp.geo.corners.map(function (q) { return [q[0], q[1]]; }) };
+      var bend = e.target.closest('.ctl-bend'), BT = bend && this._bendTarget();
+      if (BT) {   // dragging a corner of the selected straight link or drop line
+        this.edit = { kind: 'bend', tkind: BT.kind, id: BT.id, idx: +bend.getAttribute('data-i'), pid: e.pointerId, x: e.clientX, y: e.clientY, moved: false,
+          bends: BT.geo.corners.map(function (q) { return [q[0], q[1]]; }) };
         this._dragged = false;
         return;
       }
@@ -952,6 +987,126 @@
     return o;
   };
 
+  // ---------- music player ----------
+  // Tracks come from "music" in the data: [{ src: "music/file.flac", title, artist, album, ... }].
+  P._buildPlayer = function () {
+    var self = this, pl = this.player, bar = pl.querySelector('.ctl-track-bar');
+    this.audio = new Audio();
+    this.audio.preload = 'none';   // nothing downloads until someone presses play
+    this.trackIdx = 0;
+    this._errors = 0;
+    pl.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-mp]');
+      if (!b) return;
+      if (b.dataset.mp === 'play') self.togglePlay();
+      else self.skip(b.dataset.mp === 'next' ? 1 : -1);
+    });
+    var seek = function (e) {
+      var a = self.audio, r = bar.getBoundingClientRect();
+      if (a.duration) a.currentTime = clamp((e.clientX - r.left) / r.width, 0, 1) * a.duration;
+    };
+    bar.addEventListener('click', seek);
+    bar.addEventListener('keydown', function (e) {
+      var a = self.audio;
+      if (!a.duration || (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft')) return;
+      a.currentTime = clamp(a.currentTime + (e.key === 'ArrowRight' ? 5 : -5), 0, a.duration);
+      e.preventDefault();
+      e.stopPropagation();
+    });
+    this.audio.addEventListener('timeupdate', function () { self._progress(); });
+    this.audio.addEventListener('play', function () { self._errors = 0; self._playState(); });
+    this.audio.addEventListener('pause', function () { self._playState(); });
+    this.audio.addEventListener('ended', function () { self.skip(1, true); });
+    this.audio.addEventListener('error', function () {
+      if (!self.tracks || !self.tracks.length || !self.audio.getAttribute('src')) return;
+      self._errors++;
+      if (self._errors < self.tracks.length) self.skip(1, true);   // skip a file that won't play
+      else { self._errors = 0; self._playState(); self.player.querySelector('.ctl-track-name').textContent = 'Can’t play these files'; }
+    });
+  };
+
+  P._loadPlaylist = function () {
+    var s = this.data.settings, raw = this._raw || {};
+    var list = (Array.isArray(raw.music) ? raw.music : []).filter(function (t) { return t && t.src; });
+    this.tracks = list;
+    var show = list.length > 0 && s.player !== false;
+    this.player.hidden = !show;
+    if (!show) { if (!this.audio.paused) this.audio.pause(); return; }
+    if (this.trackIdx >= list.length) this.trackIdx = 0;
+    if (this._curSrc !== list[this.trackIdx].src) this._setTrack(this.trackIdx, !this.audio.paused);
+    else this._showTrack();
+    this._placePlayer(true);
+  };
+
+  P._setTrack = function (i, play) {
+    var n = this.tracks.length;
+    if (!n) return;
+    this.trackIdx = ((i % n) + n) % n;
+    var t = this.tracks[this.trackIdx];
+    this._curSrc = t.src;
+    this.audio.src = this._img(t.src);
+    this._showTrack();
+    this._progress();
+    if (play) this.audio.play().catch(function () { /* the browser wants a click first */ });
+    else this._playState();
+  };
+
+  P._showTrack = function () {
+    var t = this.tracks[this.trackIdx], box = this.player.querySelector('.ctl-track'), name = this.player.querySelector('.ctl-track-name');
+    var title = t.title || String(t.src).split('/').pop().replace(/\.[^.]+$/, '');
+    name.textContent = title + (t.artist ? ' — ' + t.artist : '');
+    box.title = [title, t.artist, t.album, t.format].filter(Boolean).join('\n') + (this.tracks.length > 1 ? '\nTrack ' + (this.trackIdx + 1) + ' of ' + this.tracks.length : '');
+    // long names scroll slowly back and forth inside the box
+    box.classList.remove('is-long');
+    var over = name.scrollWidth - box.querySelector('.ctl-track-text').clientWidth;
+    if (over > 4) { box.classList.add('is-long'); box.style.setProperty('--ctl-shift', -(over + 8) + 'px'); }
+  };
+
+  P._playState = function () {
+    var b = this.player.querySelector('[data-mp="play"]'), playing = !this.audio.paused;
+    b.innerHTML = playing ? ICON.pause : ICON.play;
+    b.setAttribute('aria-label', playing ? 'Pause' : 'Play');
+    b.title = playing ? 'Pause' : 'Play';
+    this.player.classList.toggle('is-playing', playing);
+  };
+
+  P._progress = function () {
+    var a = this.audio, k = a.duration ? a.currentTime / a.duration : 0, bar = this.player.querySelector('.ctl-track-bar');
+    bar.firstChild.style.width = (k * 100).toFixed(2) + '%';
+    bar.setAttribute('aria-valuenow', String(Math.round(k * 100)));
+  };
+
+  P.togglePlay = function () {
+    if (!this.tracks || !this.tracks.length) return;
+    if (!this.audio.getAttribute('src')) this._setTrack(this.trackIdx, false);
+    if (this.audio.paused) this.audio.play().catch(function () { /* blocked or unplayable: the error handler reports it */ });
+    else this.audio.pause();
+  };
+
+  P.skip = function (dir, auto) {
+    if (!this.tracks || !this.tracks.length) return;
+    var a = this.audio;
+    // "previous" first rewinds the current track, like most players
+    if (dir < 0 && !auto && a.currentTime > 3) { a.currentTime = 0; return; }
+    this._setTrack(this.trackIdx + dir, auto || !a.paused);
+  };
+
+  // Keep the player just right of the big title (or under it when there's no room), moving with the map.
+  P._placePlayer = function (measure) {
+    if (!this.player || this.player.hidden || !this.L) return;
+    if (measure || this._titleBox === undefined) {
+      var t = this.world.querySelector('.ctl-maptitle');
+      try { this._titleBox = t ? t.getBBox() : null; } catch (e) { this._titleBox = null; }
+    }
+    var v = this.v, bb = this._titleBox, pw = this.player.offsetWidth || 330, ph = this.player.offsetHeight || 40, x = 12, y = 12;
+    if (bb && bb.width) {
+      x = v.tx + (bb.x + bb.width + 28) * v.s;
+      y = v.ty + (bb.y + bb.height / 2) * v.s - ph / 2;
+      if (x + pw > this.W - 8) { x = v.tx + bb.x * v.s; y = v.ty + (bb.y + bb.height + 6) * v.s; }   // no room beside it
+    }
+    this.player.style.transform = 'translate(' + r1(x) + 'px,' + r1(y) + 'px)';
+  };
+
   // Pointer position in map coordinates.
   P._toWorld = function (e) {
     var r = this.svg.getBoundingClientRect();
@@ -972,8 +1127,33 @@
     this.selectedLink = cid || null;
     var sel = this.selectedLink;
     this.world.querySelectorAll('.ctl-link').forEach(function (g) { g.classList.toggle('is-selected', g.dataset.c === sel); });
-    var parts = sel && this.opts.editable ? this._linkParts(sel) : null;
-    this._drawHandles(parts && parts.geo.straight ? parts.geo.corners : null);
+    this._refreshHandles();
+  };
+
+  // What the corner handles belong to: the selected straight link, or the straight drop line of the selected main point.
+  P._bendTarget = function (bends) {
+    if (!this.opts.editable || !this.L) return null;
+    if (this.selectedLink) {
+      var parts = this._linkParts(this.selectedLink, bends);
+      return parts && parts.geo.straight ? { kind: 'link', id: this.selectedLink, geo: parts.geo, parts: parts } : null;
+    }
+    var id = this.selectedLine, R = id && this.L.lines.find(function (x) { return x.line.id === id; });
+    if (R && R.start) {
+      var geo = startGeom(R, this.L.G, this.data.settings, bends);
+      if (geo.straight) return { kind: 'start', id: id, geo: geo, R: R };
+    }
+    return null;
+  };
+  P._redrawBendTarget = function (T) {
+    var g = null;
+    this.world.querySelectorAll(T.kind === 'link' ? '.ctl-link' : '.ctl-startg').forEach(function (x) {
+      if ((T.kind === 'link' ? x.dataset.c : x.getAttribute('data-line')) === T.id) g = x;
+    });
+    if (g) g.innerHTML = T.kind === 'link' ? linkInner(T.parts.c, T.parts.t, T.geo, this.data.settings, T.parts.a, T.parts.b) : startInner(T.R, T.geo);
+  };
+  P._refreshHandles = function () {
+    var T = this._bendTarget();
+    this._drawHandles(T ? T.geo.corners : null);
   };
   P._drawHandles = function (corners) {
     var old = this.world.querySelector('.ctl-bends');
@@ -992,6 +1172,8 @@
     this.selectedLine = id || null;
     var sel = this.selectedLine;
     this.world.querySelectorAll('.ctl-term').forEach(function (t) { t.classList.toggle('is-selected', t.getAttribute('data-line') === sel); });
+    this.world.querySelectorAll('.ctl-startg').forEach(function (g) { g.classList.toggle('is-selected', g.getAttribute('data-line') === sel); });
+    this._refreshHandles();
   };
 
   // ---------- editor dragging ----------
@@ -1021,21 +1203,19 @@
     }
     if (E.kind === 'bend') {
       var w = this._toWorld(e), wx = Math.round(w[0] / 10) * 10, wy = Math.round(w[1] / 10) * 10;
-      var parts = this._linkParts(E.id, E.bends);
-      if (!parts) return;
-      // line up with the neighbouring corners (or the stations at the ends) so right angles are easy
-      var pts = parts.geo.pts, prev = pts[E.idx], next = pts[E.idx + 2], snap = 12 / s;
+      var T = this._bendTarget(E.bends);
+      if (!T) return;
+      // line up with the neighbouring corners (or the ends) so right angles are easy
+      var pts = T.geo.pts, prev = pts[E.idx], next = pts[E.idx + 2], snap = 12 / s;
       [prev, next].forEach(function (q) {
         if (!q) return;
         if (Math.abs(w[0] - q[0]) < snap) wx = q[0];
         if (Math.abs(w[1] - q[1]) < snap) wy = q[1];
       });
       E.bends[E.idx] = [wx, wy];
-      parts = this._linkParts(E.id, E.bends);
-      var lg = null;
-      this.world.querySelectorAll('.ctl-link').forEach(function (x) { if (x.dataset.c === E.id) lg = x; });
-      if (lg) lg.innerHTML = linkInner(parts.c, parts.t, parts.geo, this.data.settings, parts.a, parts.b);
-      this._drawHandles(parts.geo.corners);
+      T = this._bendTarget(E.bends);
+      this._redrawBendTarget(T);
+      this._drawHandles(T.geo.corners);
       return;
     }
     var P0 = this.L.pos.get(E.id), r = this.svg.getBoundingClientRect();
@@ -1057,7 +1237,8 @@
     if (!E.moved) return;
     var cancelled = e.type === 'pointercancel';
     if (E.kind === 'bend') {
-      if (!cancelled && this.opts.onMoveBends) this.opts.onMoveBends(E.id, E.bends);
+      var save = E.tkind === 'link' ? this.opts.onMoveBends : this.opts.onMoveStartBends;
+      if (!cancelled && save) save(E.id, E.bends);
       else this.refresh();
       return;
     }
@@ -1288,6 +1469,7 @@
   };
   P.refresh = function () { this.setData(this._raw, {}); };
   P.destroy = function () {
+    if (this.audio) { this.audio.pause(); this.audio.removeAttribute('src'); }
     if (this._ro) this._ro.disconnect();
     if (this._onWin) global.removeEventListener('resize', this._onWin);
     document.removeEventListener('fullscreenchange', this._onFs);

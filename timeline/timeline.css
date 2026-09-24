@@ -102,6 +102,38 @@ html:has(.ctl-full), body:has(.ctl-full) { height: 100%; overflow: hidden; overs
 .ctl-legend svg { width: 26px; height: 10px; overflow: visible; }
 .ctl-hint { color: var(--ctl-muted); }
 
+/* ---------- Music player (sits next to the map title) ---------- */
+.ctl-player {
+  position: absolute; left: 0; top: 0; z-index: 5;
+  display: flex; align-items: center; gap: 4px;
+  padding: 4px 5px; border-radius: 10px;
+  background: var(--ctl-surface); border: 1px solid var(--ctl-line-strong);
+  box-shadow: var(--ctl-shadow-lg); font-family: var(--ctl-map-font);
+}
+.ctl-fill { fill: currentColor; stroke: none; }
+/* ".ctl .ctl-pbtn" so these win over the general ".ctl button { color: inherit }" */
+.ctl .ctl-pbtn {
+  display: inline-grid; place-items: center; width: 30px; height: 30px; padding: 0;
+  border: 0; border-radius: 50%; background: transparent; color: var(--ctl-ink-2); cursor: pointer;
+}
+.ctl .ctl-pbtn:hover { color: var(--ctl-ink); background: var(--ctl-band); }
+.ctl .ctl-pbtn-main { width: 34px; height: 34px; background: var(--ctl-ink); color: var(--ctl-bg); }
+.ctl .ctl-pbtn-main:hover { background: var(--ctl-hi); color: #10131c; }
+.ctl .ctl-pbtn-main .ctl-i { width: 15px; height: 15px; }
+.ctl-track {
+  position: relative; width: 220px; height: 32px; margin-left: 4px; overflow: hidden;
+  border: 1px solid var(--ctl-line-strong); border-radius: 5px; background: var(--ctl-bg);
+}
+.ctl-track-text { position: absolute; left: 9px; right: 9px; top: 0; bottom: 3px; display: flex; align-items: center; overflow: hidden; }
+.ctl-track-name { white-space: nowrap; font-size: 12.5px; font-weight: 600; font-style: italic; color: var(--ctl-ink); }
+.ctl-track.is-long .ctl-track-name { animation: ctl-marquee 12s ease-in-out infinite alternate; }
+@keyframes ctl-marquee { 0%, 15% { transform: translateX(0); } 85%, 100% { transform: translateX(var(--ctl-shift, 0)); } }
+.ctl-track-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; cursor: pointer; background: var(--ctl-band); }
+.ctl-track-bar:hover, .ctl-track-bar:focus-visible { height: 6px; }
+.ctl-track-bar i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--ctl-hi); }
+.ctl .ctl-player.is-playing .ctl-pbtn-main { background: var(--ctl-hi); color: #10131c; }
+@media (prefers-reduced-motion: reduce) { .ctl-track.is-long .ctl-track-name { animation: none; } }
+
 /* ---------- Map ---------- */
 .ctl-stage { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; }
 .ctl-map { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; touch-action: pan-y; -webkit-user-select: none; user-select: none; display: block; }
@@ -116,7 +148,7 @@ html:has(.ctl-full), body:has(.ctl-full) { height: 100%; overflow: hidden; overs
 .ctl-start-hit { fill: none; stroke: transparent; stroke-width: 14; }
 .ctl-start-note { font-style: italic; font-weight: 600; }
 .ctl-editable .ctl-start-hit { cursor: pointer; }
-.ctl-editable .ctl-startg:hover .ctl-startlink { stroke-width: 5; }
+.ctl-editable .ctl-startg:hover .ctl-startlink, .ctl-editable .ctl-startg.is-selected .ctl-startlink { stroke-width: 5; }
 .ctl-term-label { font-weight: 800; font-style: italic; letter-spacing: -0.02em; }
 .ctl-term-name { font-style: italic; font-weight: 600; }
 .ctl-ring { fill: var(--ctl-bg); stroke-width: 5.5; }
@@ -250,6 +282,7 @@ html:has(.ctl-full), body:has(.ctl-full) { height: 100%; overflow: hidden; overs
 .ctl.ctl-narrow .ctl-tools { top: 10px; right: 10px; gap: 5px; }
 .ctl.ctl-narrow .ctl-search { flex: 1 1 110px; min-width: 0; }
 .ctl.ctl-narrow .ctl-search input { width: 100%; }
+.ctl.ctl-narrow .ctl-track { width: 160px; }
 .ctl.ctl-narrow .ctl-tools [data-act="zoom-in"], .ctl.ctl-narrow .ctl-tools [data-act="zoom-out"] { display: none; }  /* pinch instead */
 .ctl.ctl-narrow .ctl-tools { left: 10px; max-width: none; flex-wrap: nowrap; }
 .ctl.ctl-narrow .ctl-legend { left: 10px; bottom: 10px; max-width: calc(100% - 20px); }

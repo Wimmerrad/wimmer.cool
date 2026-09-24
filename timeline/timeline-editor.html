@@ -59,7 +59,7 @@
   /* Layout */
   .ed-main { display: grid; grid-template-columns: minmax(340px, 430px) minmax(0, 1fr); min-height: 0; }
   .ed-side { display: flex; flex-direction: column; min-height: 0; background: var(--surface); border-right: 1px solid var(--line); }
-  .ed-tabs { display: flex; border-bottom: 1px solid var(--line); overflow-x: auto; flex: none; }
+  .ed-tabs { display: flex; flex-wrap: wrap; border-bottom: 1px solid var(--line); flex: none; }   /* wraps onto a second row instead of hiding tabs */
   .ed-tabs button {
     flex: 1 0 auto; padding: 11px 10px 9px; border: 0; border-bottom: 2px solid transparent; background: none; cursor: pointer;
     color: var(--ink-2); font-size: 13px;
@@ -104,6 +104,14 @@
 
   .ed-card { border: 1px solid var(--line); border-radius: 8px; padding: 10px; margin-bottom: 10px; background: var(--surface); }
   .ed-card { transition: box-shadow 0.3s, border-color 0.3s; scroll-margin-top: 10px; }
+  /* Connections tab: roomier cards with a label over every control */
+  .ed-conncard { padding: 14px 14px 12px; margin-bottom: 18px; }
+  .ed-conncard .ed-field { margin-bottom: 14px; }
+  .ed-conncard .ed-card-row > select { height: 34px; }
+  .ed-conncard .ed-card-foot { margin-top: 4px; padding-top: 12px; border-top: 1px solid var(--line); }
+  .ed-conn-head { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; font-size: 13px; line-height: 1.35; color: var(--ink-2); }
+  .ed-conn-head svg { width: 26px; height: 10px; flex: none; overflow: visible; }
+  .ed-conn-head b { color: var(--ink); font-weight: 600; }
   .ed-card.is-flash { border-color: var(--hi); box-shadow: 0 0 0 3px var(--hi-soft); }
   .ed-card-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
   .ed-card-row > select { flex: 1 1 130px; min-width: 0; height: 32px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); padding: 0 6px; }
@@ -172,7 +180,8 @@
       <button type="button" role="tab" data-tab="points">Points</button>
       <button type="button" role="tab" data-tab="connections">Connections</button>
       <button type="button" role="tab" data-tab="types">Connection kinds</button>
-      <button type="button" role="tab" data-tab="lanes">Lines</button>
+      <button type="button" role="tab" data-tab="lanes">Main points</button>
+      <button type="button" role="tab" data-tab="music">Music</button>
       <button type="button" role="tab" data-tab="settings">Settings</button>
     </nav>
     <div class="ed-pane" id="pane" role="tabpanel"></div>
@@ -338,6 +347,17 @@ window.__startEditor = function () {
     },
     // click a dashed link: open that connection; click a kind in the legend: open that kind
     onLinkClick: function (cid) { openCard('connections', 'data-ccard', cid); },
+    // corners of a main point's straight drop line were dragged, added or removed
+    onMoveStartBends: function (lineId, bends) {
+      mutate(function (d) {
+        var l = d.lines.find(function (x) { return x.id === lineId; });
+        if (!l) return;
+        l.startBends = bends.map(function (q) { return [Math.round(q[0]), Math.round(q[1])]; });
+        if ((l.startShape || d.settings.linkShape) !== 'straight') l.startShape = 'straight';
+      });
+      updatePreview();
+      if (S.tab === 'lanes') render();
+    },
     // corners of a straight link were dragged, added or removed
     onMoveBends: function (cid, bends) {
       mutate(function (d) {
@@ -430,6 +450,7 @@ window.__startEditor = function () {
     else if (S.tab === 'connections') pane.innerHTML = connectionsPane();
     else if (S.tab === 'types') pane.innerHTML = typesPane();
     else if (S.tab === 'lanes') pane.innerHTML = lanesPane();
+    else if (S.tab === 'music') pane.innerHTML = musicPane();
     else pane.innerHTML = settingsPane();
     pane.scrollTop = scroll;
     if (S.tab === 'points' && !S.editing) renderPointRows();
@@ -462,7 +483,7 @@ window.__startEditor = function () {
       (S.source === 'example' ? '<p class="ed-note">You’re looking at the example timeline. Edit it here, or remove the points in Settings to start fresh. Use <strong>Open timeline folder</strong> to work on the copy inside your site.</p>' : '') +
       '<input type="search" class="ed-input" id="pt-filter" placeholder="Find a point" aria-label="Find a point" value="' + esc(S.filter) + '">' +
       '<ul class="ed-list" id="pt-rows"></ul>' +
-      '<p class="ed-hint" style="margin-top:14px">Tip: click a station in the preview to edit it. Points on each line are ordered by their date.</p>';
+      '<p class="ed-hint" style="margin-top:14px">Tip: click a station in the preview to edit it. The entries on each main point’s track are ordered by their date.</p>';
   }
   function renderPointRows() {
     var ul = $('pt-rows');
@@ -509,15 +530,15 @@ window.__startEditor = function () {
       '<label class="ed-check"><input type="checkbox" data-f="circa"' + (p.circa ? ' checked' : '') + '> Approximate (shows “c.” before the date)</label></fieldset>';
     h += '<fieldset class="ed-fieldset"><legend class="ed-legend">End date <span class="ed-hint">(only for periods, e.g. a war or a career)</span></legend>' + dateInputs('end', p.end, false) + '</fieldset>';
     h += '<label class="ed-field"><span>Text on the line</span><input data-f="dateLabel" value="' + esc(p.dateLabel || '') + '" placeholder="Optional, e.g. “Year 79: The One Year War”"><small>Shown next to the station instead of the plain date. The date above still decides the order of stations.</small></label>';
-    h += '<label class="ed-field"><span>Line</span><select data-f="line">' + options(S.data.lines, laneOf(p.line).id, function (l) { return (l.label ? l.label + ' · ' : '') + (l.name || ''); }) + '</select></label>';
+    h += '<label class="ed-field"><span>Main point</span><select data-f="line">' + options(S.data.lines, laneOf(p.line).id, function (l) { return (l.label ? l.label + ' · ' : '') + (l.name || ''); }) + '</select></label>';
     var track = parseInt(p.track, 10) || 0;
-    h += '<label class="ed-field"><span>Position</span><select data-f="track">' + [[-2, 'Branch, two levels above'], [-1, 'Branch above the line'], [0, 'On the main line'], [1, 'Branch below the line'], [2, 'Branch, two levels below']].map(function (o) {
+    h += '<label class="ed-field"><span>Position</span><select data-f="track">' + [[-2, 'Branch, two levels above'], [-1, 'Branch above the track'], [0, 'On the main track'], [1, 'Branch below the track'], [2, 'Branch, two levels below']].map(function (o) {
       return '<option value="' + o[0] + '"' + (o[0] === track ? ' selected' : '') + '>' + o[1] + '</option>';
-    }).join('') + '</select><small>Stations next to each other on the same branch share one side track, which leaves and rejoins the main line.</small></label>';
+    }).join('') + '</select><small>Stations next to each other on the same branch share one side track, which leaves and rejoins the main track.</small></label>';
     var dflt = S.data.settings.display === 'covers' ? 'Cover' : 'Ring';
     h += '<label class="ed-field"><span>Look</span><select data-f="look">' +
       '<option value=""' + (!p.look ? ' selected' : '') + '>Same as the timeline (' + dflt + ')</option>' +
-      '<option value="ring"' + (p.look === 'ring' ? ' selected' : '') + '>Ring: a small station on the line</option>' +
+      '<option value="ring"' + (p.look === 'ring' ? ' selected' : '') + '>Ring: a small station on the track</option>' +
       '<option value="cover"' + (p.look === 'cover' ? ' selected' : '') + '>Cover: its first picture, shown large</option></select>' +
       '<small>The timeline’s default is set in Settings.' + (p.look === 'cover' && !(p.images || []).length ? ' Add a picture below. Until then the cover shows the title.' : '') + '</small></label>';
     h += '<label class="ed-field"><span>Caption under the station</span><input data-f="caption" value="' + esc(p.caption || '') + '" placeholder="Optional, e.g. “Amuro gets the Gundam”"></label>';
@@ -582,18 +603,23 @@ window.__startEditor = function () {
     if (!d.connections.length) h += '<p class="ed-empty">No connections yet.</p>';
     var byDate = function (c) { var p = point(c.from); return p ? dv(p.date) : 0; };
     d.connections.slice().sort(function (a, b) { return byDate(a) - byDate(b); }).forEach(function (c) {
-      h += '<div class="ed-card" data-ccard="' + esc(c.id) + '"><div class="ed-card-row"><select data-cf="from" data-cid="' + esc(c.id) + '" aria-label="From">' + pointOptions(c.from) + '</select></div>' +
-        '<div class="ed-card-row"><select data-cf="type" data-cid="' + esc(c.id) + '" aria-label="Kind of connection">' + options(d.types, c.type) + '</select>' +
-        '<button type="button" class="ed-btn small icon" data-a="conn-swap" data-cid="' + esc(c.id) + '" title="Reverse direction" aria-label="Reverse direction">⇅</button></div>' +
-        '<div class="ed-card-row"><select data-cf="to" data-cid="' + esc(c.id) + '" aria-label="To">' + pointOptions(c.to) + '</select></div>' +
-        '<div class="ed-card-row"><input class="ed-input" data-cf="note" data-cid="' + esc(c.id) + '" value="' + esc(c.note || '') + '" placeholder="Note (optional)" aria-label="Note">' +
-        '<button type="button" class="ed-btn small icon danger" data-a="conn-del" data-cid="' + esc(c.id) + '" aria-label="Remove connection">✕</button></div>' +
-        '<div class="ed-card-row"><select data-cf="route" data-cid="' + esc(c.id) + '" aria-label="Shape of the link">' +
-          '<option value=""' + (!c.route ? ' selected' : '') + '>Shape: same as the timeline (' + (d.settings.linkShape === 'straight' ? 'straight' : 'curved') + ')</option>' +
-          '<option value="curve"' + (c.route === 'curve' ? ' selected' : '') + '>Shape: curved</option>' +
-          '<option value="straight"' + (c.route === 'straight' ? ' selected' : '') + '>Shape: straight, with movable corners</option></select>' +
-          (c.bends ? '<button type="button" class="ed-btn small" data-a="conn-unbend" data-cid="' + esc(c.id) + '" title="Go back to the automatic corners">Reset corners</button>' : '') + '</div>' +
-        '<div class="ed-card-foot"><button type="button" class="ed-link" data-a="open-kind" data-tid="' + esc(typeOf(c.type).id) + '">Change how “' + esc(typeOf(c.type).name) + '” links look</button></div></div>';
+      var cid = esc(c.id), t = typeOf(c.type), from = point(c.from), to = point(c.to);
+      h += '<div class="ed-card ed-conncard" data-ccard="' + cid + '">' +
+        // a short summary at the top, so each card is easy to find
+        '<div class="ed-conn-head">' + CT.kindSample(t) + '<span>' + esc((from && from.title) || 'Untitled') + ' <b>' + esc(t.name) + '</b> ' + esc((to && to.title) || 'Untitled') + '</span></div>' +
+        '<label class="ed-field"><span>From</span><select data-cf="from" data-cid="' + cid + '">' + pointOptions(c.from) + '</select></label>' +
+        '<div class="ed-field"><span>Kind of connection</span><div class="ed-card-row"><select data-cf="type" data-cid="' + cid + '" aria-label="Kind of connection">' + options(d.types, c.type) + '</select>' +
+          '<button type="button" class="ed-btn small" data-a="conn-swap" data-cid="' + cid + '" title="Swap From and To">⇅ Reverse</button></div></div>' +
+        '<label class="ed-field"><span>To</span><select data-cf="to" data-cid="' + cid + '">' + pointOptions(c.to) + '</select></label>' +
+        '<label class="ed-field"><span>Note</span><input data-cf="note" data-cid="' + cid + '" value="' + esc(c.note || '') + '" placeholder="Optional, e.g. “Loose adaptation”">' +
+          '<small>Shown when a visitor hovers the link, and in each point’s details. Written along the link when it touches a cover.</small></label>' +
+        '<div class="ed-field"><span>Shape of the link</span><div class="ed-card-row"><select data-cf="route" data-cid="' + cid + '" aria-label="Shape of the link">' +
+          '<option value=""' + (!c.route ? ' selected' : '') + '>Same as the timeline (' + (d.settings.linkShape === 'straight' ? 'straight' : 'curved') + ')</option>' +
+          '<option value="curve"' + (c.route === 'curve' ? ' selected' : '') + '>Curved</option>' +
+          '<option value="straight"' + (c.route === 'straight' ? ' selected' : '') + '>Straight, with movable corners</option></select>' +
+          (c.bends ? '<button type="button" class="ed-btn small" data-a="conn-unbend" data-cid="' + cid + '" title="Go back to the automatic corners">Reset corners</button>' : '') + '</div></div>' +
+        '<div class="ed-card-foot"><button type="button" class="ed-link" data-a="open-kind" data-tid="' + esc(t.id) + '">Change how “' + esc(t.name) + '” links look</button>' +
+          '<button type="button" class="ed-btn small danger" data-a="conn-del" data-cid="' + cid + '">Delete connection</button></div></div>';
     });
     return h;
   }
@@ -603,7 +629,7 @@ window.__startEditor = function () {
     var d = S.data;
     var h = '<div class="ed-head"><h2>Connection kinds<small>' + d.types.length + '</small></h2>' +
       '<button type="button" class="ed-btn primary small" data-a="type-add">+ Add kind</button></div>' +
-      '<p class="ed-note">Kinds describe how two points relate. Connections between different lines are drawn on the map as links in the kind’s colour and style; all connections are listed in each point’s details.</p>';
+      '<p class="ed-note">Kinds describe how two points relate. Connections between entries of different main points are drawn on the map as links in the kind’s colour and style; all connections are listed in each point’s details.</p>';
     d.types.forEach(function (t) {
       var n = d.connections.filter(function (c) { return c.type === t.id; }).length;
       var id = esc(t.id);
@@ -622,19 +648,19 @@ window.__startEditor = function () {
     return h;
   }
 
-  // Lines tab
+  // Main points tab (the big circles, each starting its own track of entries)
   function lanesPane() {
     var d = S.data;
-    var h = '<div class="ed-head"><h2>Lines<small>' + d.lines.length + '</small></h2>' +
-      '<button type="button" class="ed-btn primary small" data-a="lane-add">+ Add line</button></div>' +
-      '<p class="ed-note">Each line is one era, storyline or thread, drawn like a transit line with its label in a circle at the start. A line can start from a station on a line above it.</p>' +
+    var h = '<div class="ed-head"><h2>Main points<small>' + d.lines.length + '</small></h2>' +
+      '<button type="button" class="ed-btn primary small" data-a="lane-add">+ Add main point</button></div>' +
+      '<p class="ed-note">A main point is a big circle, like an era or a series. Its entries sit on the coloured track that runs from it. A main point can hang below an entry of another main point, joined by a drop line.</p>' +
       (d.lines.some(function (l) { return l.pos; })
-        ? '<p class="ed-note">Lines are placed by hand. <button type="button" class="ed-link" data-a="lanes-unpin-all">Put all lines back in the automatic layout</button></p>' : '');
+        ? '<p class="ed-note">Main points are placed by hand. <button type="button" class="ed-link" data-a="lanes-unpin-all">Put them all back in the automatic layout</button></p>' : '');
     d.lines.forEach(function (l, i) {
       var n = d.points.filter(function (p) { return laneOf(p.line).id === l.id; }).length;
       var id = esc(l.id);
       var earlier = d.lines.slice(0, i).map(function (x) { return x.id; });
-      var startOpts = '<option value="">Its own start, at the left edge</option>' + sortedPoints().filter(function (p) {
+      var startOpts = '<option value="">On its own, at the left edge</option>' + sortedPoints().filter(function (p) {
         return earlier.indexOf(laneOf(p.line).id) >= 0;
       }).map(function (p) {
         return '<option value="' + esc(p.id) + '"' + (l.start === p.id ? ' selected' : '') + '>Below “' + esc(p.title || 'Untitled') + '” (' + esc(laneOf(p.line).label || '') + ')</option>';
@@ -643,22 +669,112 @@ window.__startEditor = function () {
         '<label>Label in the circle<input data-lnf="label" data-lid="' + id + '" value="' + esc(l.label || '') + '" maxlength="8" placeholder="e.g. U.C."></label>' +
         '<label>Name<input data-lnf="name" data-lid="' + id + '" value="' + esc(l.name || '') + '" placeholder="e.g. Universal Century"></label></div>' +
         '<div class="ed-field" style="margin-top:6px"><span>Colour</span>' + swatches('data-lid', l.id, l.color) + '</div>' +
-        '<label class="ed-field"><span>Where the line starts</span><select data-lnf="start" data-lid="' + id + '">' + startOpts + '</select></label>' +
-        (l.start ? '<div class="ed-grid" style="grid-template-columns:0.8fr 1.6fr;margin-bottom:12px">' +
+        '<label class="ed-field"><span>Where it starts</span><select data-lnf="start" data-lid="' + id + '">' + startOpts + '</select></label>' +
+        (l.start ? '<div class="ed-grid" style="grid-template-columns:1fr 1fr;margin-bottom:10px">' +
+          '<label>Drop line shape<select data-lnf="startShape" data-lid="' + id + '">' +
+            '<option value=""' + (!l.startShape ? ' selected' : '') + '>Same as the timeline (' + (d.settings.linkShape === 'straight' ? 'straight' : 'curved') + ')</option>' +
+            '<option value="curve"' + (l.startShape === 'curve' ? ' selected' : '') + '>Curved</option>' +
+            '<option value="straight"' + (l.startShape === 'straight' ? ' selected' : '') + '>Straight, movable corners</option></select></label>' +
           '<label>Drop line style<select data-lnf="startStyle" data-lid="' + id + '">' + STYLES.map(function (s) {
             return '<option value="' + s[0] + '"' + ((l.startStyle || 'dashed') === s[0] ? ' selected' : '') + '>' + s[1] + '</option>';
-          }).join('') + '</select></label>' +
-          '<label>Note along the drop line<input data-lnf="startNote" data-lid="' + id + '" value="' + esc(l.startNote || '') + '" placeholder="Optional, e.g. “Anime adaptation”"></label></div>' : '') +
-        '<label class="ed-check"><input type="checkbox" data-lnf="continues" data-lid="' + id + '"' + (l.continues !== false ? ' checked' : '') + '> Keep going to the right edge (the story continues)</label>' +
+          }).join('') + '</select></label></div>' +
+          '<label class="ed-field"><span>Note along the drop line</span><input data-lnf="startNote" data-lid="' + id + '" value="' + esc(l.startNote || '') + '" placeholder="Optional, e.g. “Anime adaptation”"></label>' +
+          (l.startBends ? '<p class="ed-hint" style="margin:-4px 0 10px">The drop line’s corners were moved by hand. <button type="button" class="ed-link" data-a="start-unbend" data-lid="' + id + '">Reset corners</button></p>'
+                        : (l.startShape || d.settings.linkShape) === 'straight' ? '<p class="ed-hint" style="margin:-4px 0 10px">Click the drop line in the preview, then drag its yellow handles to move its corners.</p>' : '') : '') +
+        '<label class="ed-check"><input type="checkbox" data-lnf="continues" data-lid="' + id + '"' + (l.continues !== false ? ' checked' : '') + '> Keep the track going to the right edge (the story continues)</label>' +
         (l.pos ? '<p class="ed-hint" style="margin:-4px 0 10px">Placed by hand in the preview. <button type="button" class="ed-link" data-a="lane-unpin" data-lid="' + id + '">Put it back in the automatic layout</button></p>'
-               : '<p class="ed-hint" style="margin:-4px 0 10px">Tip: drag the line’s circle in the preview to place it anywhere.</p>') +
-        '<div class="ed-card-foot"><span>' + n + (n === 1 ? ' point' : ' points') + '</span><span class="ed-card-row">' +
+               : '<p class="ed-hint" style="margin:-4px 0 10px">Tip: click the big circle in the preview, then drag it to place it anywhere.</p>') +
+        '<div class="ed-card-foot"><span>' + n + (n === 1 ? ' entry' : ' entries') + '</span><span class="ed-card-row">' +
         '<button type="button" class="ed-btn small icon" data-a="lane-move" data-lid="' + id + '" data-d="-1" aria-label="Move up"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
         '<button type="button" class="ed-btn small icon" data-a="lane-move" data-lid="' + id + '" data-d="1" aria-label="Move down"' + (i === d.lines.length - 1 ? ' disabled' : '') + '>↓</button>' +
         (d.lines.length > 1 ? '<button type="button" class="ed-btn small danger" data-a="lane-del" data-lid="' + id + '">Delete</button>' : '') +
         '</span></div></div>';
     });
     return h;
+  }
+
+  // Music tab
+  function musicPane() {
+    var list = S.data.music || [], s = S.data.settings;
+    var h = '<div class="ed-head"><h2>Music<small>' + list.length + '</small></h2>' +
+      (HAS_FS ? '<button type="button" class="ed-btn primary small" data-a="music-scan">Scan music folder</button>' : '') + '</div>' +
+      '<p class="ed-note">Put your tracks in the <code>music</code> folder inside your timeline folder, then click <strong>Scan music folder</strong>. ' +
+      'The editor reads each file’s own info: title, artist, album and track number, plus its properties (for FLAC: sample rate, bit depth and channels). FLAC, MP3, OGG, WAV and M4A all play.</p>' +
+      (HAS_FS ? '<p class="ed-note">' + (S.dir ? '' : '<strong>Open your timeline folder first</strong> (top right) so the editor can see the music folder. ') +
+        'You can also <label class="ed-link" style="cursor:pointer"><input type="file" id="music-input" accept="audio/*,.flac" multiple hidden>add files from elsewhere</label>; they’re copied into the music folder when you save.</p>'
+        : '<p class="ed-note">This browser can’t look inside folders. Copy files into the music folder yourself, then add each one by its file name below. Chrome or Edge can read their info automatically.</p>') +
+      '<label class="ed-check"><input type="checkbox" data-sf="player"' + (s.player !== false ? ' checked' : '') + '> Show the music player next to the title</label>';
+    if (!list.length) h += '<p class="ed-empty">No tracks yet.</p>';
+    list.forEach(function (t, i) {
+      var file = String(t.src || '').split('/').pop();
+      var props = [t.format, t.duration ? fmtTime(t.duration) : '', t.size ? fmtSize(t.size) : ''].filter(Boolean).join(' · ');
+      h += '<div class="ed-card" data-mcard="' + i + '">' +
+        '<div class="ed-grid" style="grid-template-columns:1.4fr 1fr">' +
+          '<label>' + (i + 1) + '. Title<input data-mf="title" data-i="' + i + '" value="' + esc(t.title || '') + '"></label>' +
+          '<label>Artist<input data-mf="artist" data-i="' + i + '" value="' + esc(t.artist || '') + '"></label></div>' +
+        '<div class="ed-grid" style="grid-template-columns:1fr">' +
+          '<label>Album<input data-mf="album" data-i="' + i + '" value="' + esc(t.album || '') + '"></label></div>' +
+        '<div class="ed-card-foot"><span title="' + esc(t.src) + '"><code>' + esc(file) + '</code>' + (props ? '<br>' + esc(props) : '') + '</span><span class="ed-card-row">' +
+          '<button type="button" class="ed-btn small icon" data-a="music-move" data-i="' + i + '" data-d="-1" aria-label="Move up"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
+          '<button type="button" class="ed-btn small icon" data-a="music-move" data-i="' + i + '" data-d="1" aria-label="Move down"' + (i === list.length - 1 ? ' disabled' : '') + '>↓</button>' +
+          '<button type="button" class="ed-btn small icon danger" data-a="music-del" data-i="' + i + '" aria-label="Remove from the player">✕</button></span></div></div>';
+    });
+    if (!HAS_FS) {
+      h += '<div class="ed-linkrow" style="grid-template-columns:1fr auto"><input class="ed-input" id="music-name" placeholder="File name in the music folder, e.g. 01 Opening.flac" aria-label="File name">' +
+        '<button type="button" class="ed-btn small" data-a="music-add-name">Add</button></div>';
+    }
+    return h;
+  }
+
+  // Scan the music folder: new files are added, their info is read, and files that are gone are removed.
+  async function scanMusic() {
+    if (!S.dir) { toast('Open your timeline folder first (top right), then scan again.', true); return; }
+    var dir;
+    try { dir = await S.dir.getDirectoryHandle('music', { create: true }); }
+    catch (e) { toast('Couldn’t open the music folder: ' + (e.message || e) + '.', true); return; }
+    toast('Reading your music files…');
+    var found = [];
+    for await (var h of dir.values()) if (h.kind === 'file' && AUDIO_EXT.test(h.name)) found.push(h);
+    var old = new Map((S.data.music || []).map(function (t) { return [t.src, t]; })), fresh = [];
+    for (var i = 0; i < found.length; i++) {
+      var file = await found[i].getFile(), src = 'music/' + found[i].name, info = await readAudioInfo(file);
+      if (!S.imageUrls.has(src)) S.imageUrls.set(src, URL.createObjectURL(file));   // lets the preview play it
+      var prev = old.get(src);
+      // keep your own edits to title / artist / album; refresh the file's properties
+      fresh.push(Object.assign({ src: src }, info, prev ? { title: prev.title || info.title, artist: prev.artist || info.artist, album: prev.album || info.album } : {}));
+    }
+    var order = (S.data.music || []).map(function (t) { return t.src; });
+    fresh.sort(function (a, b) {
+      var ia = order.indexOf(a.src), ib = order.indexOf(b.src);
+      if (ia >= 0 && ib >= 0) return ia - ib;   // tracks already listed keep your order
+      if (ia >= 0 || ib >= 0) return ia >= 0 ? -1 : 1;   // new ones go at the end,
+      return (a.album || '').localeCompare(b.album || '') || (a.track || 0) - (b.track || 0) || a.src.localeCompare(b.src);   // by album and track number
+    });
+    var gone = order.filter(function (src) { return !S.pending.has(src) && !fresh.some(function (t) { return t.src === src; }); }).length;
+    var kept = (S.data.music || []).filter(function (t) { return S.pending.has(t.src); });   // added but not saved yet
+    mutate(function (d) { d.music = fresh.concat(kept.filter(function (t) { return !fresh.some(function (f) { return f.src === t.src; }); })); });
+    updatePreview();
+    S.tab = 'music';
+    render();
+    toast(fresh.length ? 'Found ' + fresh.length + (fresh.length === 1 ? ' track' : ' tracks') + (gone ? '; removed ' + gone + ' that are no longer in the folder.' : '.') : 'The music folder is empty. Put your files in timeline/music, then scan again.');
+  }
+
+  async function addMusicFiles(files) {
+    var list = Array.from(files || []).filter(function (f) { return AUDIO_EXT.test(f.name) || /^audio\//.test(f.type); });
+    if (!list.length) { toast('Those aren’t music files. Use FLAC, MP3, OGG, WAV or M4A.', true); return; }
+    var added = [];
+    for (var i = 0; i < list.length; i++) {
+      var f = list[i], name = f.name, n = 2;
+      while ((S.data.music || []).some(function (t) { return t.src === 'music/' + name; }) || S.pending.has('music/' + name)) name = f.name.replace(/(\.[^.]+)$/, '-' + n++ + '$1');
+      var src = 'music/' + name;
+      S.pending.set(src, f);
+      S.imageUrls.set(src, URL.createObjectURL(f));
+      added.push(Object.assign({ src: src }, await readAudioInfo(f)));
+    }
+    mutate(function (d) { d.music = (d.music || []).concat(added); });
+    updatePreview();
+    render();
+    toast(added.length + (added.length === 1 ? ' track added' : ' tracks added') + '. They’re copied into the music folder when you save.');
   }
 
   // Settings tab
@@ -689,7 +805,7 @@ window.__startEditor = function () {
       '<label class="ed-field"' + (s.height === 'full' ? ' hidden' : '') + '><span>Height on your page (pixels)</span><input type="number" min="380" step="10" data-sf="height" value="' + esc(s.height === 'full' ? 720 : (s.height || 720)) + '"></label>' +
       '<section class="ed-section"><h3>Add the timeline to a page</h3><p class="ed-note">Copy the <code>timeline</code> folder into your site, then paste this where the timeline should appear:</p>' +
       '<div class="ed-code"><pre id="snippet">' + esc(snippet) + '</pre><button type="button" class="ed-btn small" data-a="copy-snippet">Copy</button></div></section>' +
-      '<section class="ed-section"><h3>Start over</h3><p class="ed-note">Removes every point and connection but keeps your lines, kinds and settings. You can undo this.</p>' +
+      '<section class="ed-section"><h3>Start over</h3><p class="ed-note">Removes every point and connection but keeps your main points, kinds and settings. You can undo this.</p>' +
       '<button type="button" class="ed-btn danger" data-a="clear-all">Remove all points</button></section>';
   }
 
@@ -845,18 +961,22 @@ window.__startEditor = function () {
         if (f === 'directed') ty.directed = t.checked; else ty[f] = t.value;
       }, 'type:' + tid + ':' + f);
       if (f === 'style' || f === 'directed') render();
+    } else if ((f = t.dataset.mf)) {   // music track title / artist / album
+      mutate(function (d) { d.music[+t.dataset.i][f] = t.value; }, 'mus:' + t.dataset.i + f);
     } else if ((f = t.dataset.lnf)) {
       var lid = t.dataset.lid;
       mutate(function (d) {
         var ln = d.lines.find(function (x) { return x.id === lid; });
         if (f === 'continues') { if (t.checked) delete ln.continues; else ln.continues = false; }
         else if (f === 'start') { if (t.value) ln.start = t.value; else delete ln.start; }
+        else if (f === 'startShape') { if (t.value) ln.startShape = t.value; else delete ln.startShape; }
         else ln[f] = t.value;
       }, 'lane:' + lid + ':' + f);
-      if (f === 'start') render();   // shows or hides the drop line options
+      if (f === 'start' || f === 'startShape') render();   // shows or hides the drop line options
     } else if ((f = t.dataset.sf)) {
       mutate(function (d) {
         if (f === 'showTitle') d.settings.showTitle = t.checked;
+        else if (f === 'player') d.settings.player = t.checked;
         else if (f === 'fullHeight') d.settings.height = t.checked ? 'full' : 720;
         else if (f === 'height') { var h = parseInt(t.value, 10); if (h >= 360) d.settings.height = h; }
         else d.settings[f] = t.value;
@@ -881,6 +1001,7 @@ window.__startEditor = function () {
   pane.addEventListener('change', function (e) {
     var t = e.target;
     if (t.id === 'img-input') { addFiles(t.files); t.value = ''; return; }
+    if (t.id === 'music-input') { addMusicFiles(t.files); t.value = ''; return; }
     onField(t, isTextish(t));
   });
 
@@ -943,14 +1064,36 @@ window.__startEditor = function () {
     }
     else if (a === 'lane-add') {
       var lid = uniqueId('new-line', ids(d.lines));
-      mutate(function (dd) { dd.lines.push({ id: lid, label: 'NEW', name: 'New line', color: unusedColor(dd.lines) }); });
+      mutate(function (dd) { dd.lines.push({ id: lid, label: 'NEW', name: 'New main point', color: unusedColor(dd.lines) }); });
       updatePreview(); render();
       var li = pane.querySelector('[data-lnf="name"][data-lid="' + lid + '"]');
       if (li) { li.focus(); li.select(); }
     }
     else if (a === 'open-kind') openCard('types', 'data-tcard', b.dataset.tid);
+    else if (a === 'music-scan') scanMusic();
+    else if (a === 'music-move') {
+      mutate(function (dd) { var t = dd.music.splice(i, 1)[0]; dd.music.splice(i + (+b.dataset.d), 0, t); });
+      updatePreview(); render();
+    }
+    else if (a === 'music-del') {
+      var gone = S.data.music[i];
+      mutate(function (dd) { dd.music.splice(i, 1); });
+      if (gone) S.pending.delete(gone.src);
+      updatePreview(); render();
+      toast('Removed “' + ((gone && gone.title) || 'track') + '” from the player. The file itself stays in the music folder.');
+    }
+    else if (a === 'music-add-name') {
+      var nm = ($('music-name').value || '').trim().replace(/^.*[\\/]/, '');
+      if (!nm) return;
+      mutate(function (dd) { (dd.music = dd.music || []).push({ src: 'music/' + nm, title: nm.replace(/\.[^.]+$/, '') }); });
+      updatePreview(); render();
+    }
     else if (a === 'conn-unbend') {
       mutate(function (dd) { var c = dd.connections.find(function (x) { return x.id === b.dataset.cid; }); if (c) delete c.bends; });
+      updatePreview(); render();
+    }
+    else if (a === 'start-unbend') {
+      mutate(function (dd) { var l = dd.lines.find(function (x) { return x.id === b.dataset.lid; }); if (l) delete l.startBends; });
       updatePreview(); render();
     }
     else if (a === 'lanes-unpin-all') {
@@ -1006,6 +1149,108 @@ window.__startEditor = function () {
     render();
     pane.scrollTop = 0;
   });
+
+  // ---------- music: reading each file's built-in info ----------
+  var AUDIO_EXT = /\.(flac|mp3|ogg|oga|opus|wav|m4a|aac|webm)$/i;
+
+  async function bytesAt(file, start, len) { return new Uint8Array(await file.slice(start, start + len).arrayBuffer()); }
+  function latin(b) { return String.fromCharCode.apply(null, Array.from(b)); }
+
+  // FLAC: STREAMINFO (sample rate, bit depth, channels, length) and VORBIS_COMMENT (title, artist, album...).
+  async function readFlac(file, info) {
+    var off = 4;
+    for (var n = 0; n < 64 && off + 4 <= file.size; n++) {
+      var h = await bytesAt(file, off, 4), last = h[0] & 0x80, type = h[0] & 0x7f, len = (h[1] << 16) | (h[2] << 8) | h[3];
+      if (type === 0) {
+        var d = await bytesAt(file, off + 4, len);
+        var rate = (d[10] << 12) | (d[11] << 4) | (d[12] >> 4), ch = ((d[12] >> 1) & 7) + 1, bits = (((d[12] & 1) << 4) | (d[13] >> 4)) + 1;
+        var total = (d[13] & 0x0f) * 4294967296 + ((d[14] << 24) >>> 0) + (d[15] << 16) + (d[16] << 8) + d[17];
+        if (rate) info.duration = total / rate;
+        info.format = 'FLAC · ' + (rate / 1000) + ' kHz · ' + bits + '-bit · ' + (ch === 2 ? 'stereo' : ch === 1 ? 'mono' : ch + ' channels');
+      } else if (type === 4) {
+        var v = new DataView((await bytesAt(file, off + 4, len)).buffer), p = 0, dec = new TextDecoder('utf-8');
+        p += 4 + v.getUint32(p, true);   // skip the encoder name
+        var count = v.getUint32(p, true), tags = {};
+        p += 4;
+        for (var i = 0; i < count && p + 4 <= len; i++) {
+          var l = v.getUint32(p, true), txt = dec.decode(new Uint8Array(v.buffer, p + 4, l)), eq = txt.indexOf('=');
+          p += 4 + l;
+          if (eq > 0) { var k = txt.slice(0, eq).toUpperCase(); tags[k] = tags[k] ? tags[k] + ', ' + txt.slice(eq + 1) : txt.slice(eq + 1); }
+        }
+        if (tags.TITLE) info.title = tags.TITLE;
+        if (tags.ARTIST || tags.ALBUMARTIST) info.artist = tags.ARTIST || tags.ALBUMARTIST;
+        if (tags.ALBUM) info.album = tags.ALBUM;
+        if (tags.TRACKNUMBER) info.track = parseInt(tags.TRACKNUMBER, 10) || undefined;
+        if (tags.DATE) info.year = String(tags.DATE).slice(0, 4);
+      }
+      if (last) break;
+      off += 4 + len;
+    }
+  }
+
+  // MP3: ID3v2 text frames (v2.2, v2.3 and v2.4).
+  async function readId3(file, info) {
+    var h = await bytesAt(file, 0, 10), ver = h[3];
+    var size = (h[6] << 21) | (h[7] << 14) | (h[8] << 7) | h[9];
+    var b = await bytesAt(file, 10, size), p = 0, short = ver === 2;
+    var names = short ? { TT2: 'title', TP1: 'artist', TAL: 'album', TRK: 'track', TYE: 'year' }
+                      : { TIT2: 'title', TPE1: 'artist', TALB: 'album', TRCK: 'track', TYER: 'year', TDRC: 'year' };
+    var text = function (d) {
+      var enc = d[0], body = d.subarray(1), label = 'iso-8859-1';
+      if (enc === 1) { label = body[0] === 0xFE && body[1] === 0xFF ? 'utf-16be' : 'utf-16le'; if ((body[0] === 0xFF && body[1] === 0xFE) || (body[0] === 0xFE && body[1] === 0xFF)) body = body.subarray(2); }
+      else if (enc === 2) label = 'utf-16be';
+      else if (enc === 3) label = 'utf-8';
+      return new TextDecoder(label).decode(body).replace(/\u0000+$/, '').replace(/\u0000/g, ', ');
+    };
+    while (p + (short ? 6 : 10) <= b.length) {
+      var id = latin(b.subarray(p, p + (short ? 3 : 4)));
+      if (!/^[A-Z0-9]+$/.test(id)) break;
+      var fs = short ? (b[p + 3] << 16) | (b[p + 4] << 8) | b[p + 5]
+             : ver === 4 ? (b[p + 4] << 21) | (b[p + 5] << 14) | (b[p + 6] << 7) | b[p + 7]
+             : ((b[p + 4] << 24) >>> 0) + (b[p + 5] << 16) + (b[p + 6] << 8) + b[p + 7];
+      var start = p + (short ? 6 : 10);
+      if (names[id] && fs > 1) {
+        var val = text(b.subarray(start, start + fs));
+        if (names[id] === 'track') info.track = parseInt(val, 10) || undefined;
+        else if (names[id] === 'year') info.year = val.slice(0, 4);
+        else info[names[id]] = val;
+      }
+      p = start + fs;
+    }
+  }
+
+  // Length of any file the browser can play.
+  function probeDuration(file) {
+    return new Promise(function (resolve) {
+      var a = new Audio(), url = URL.createObjectURL(file), done = function (d) { URL.revokeObjectURL(url); resolve(d); };
+      a.preload = 'metadata';
+      a.onloadedmetadata = function () { done(isFinite(a.duration) ? a.duration : 0); };
+      a.onerror = function () { done(0); };
+      setTimeout(function () { done(0); }, 6000);
+      a.src = url;
+    });
+  }
+
+  // Title, artist, album, track number and the file's properties.
+  async function readAudioInfo(file) {
+    var ext = (/\.([a-z0-9]+)$/i.exec(file.name) || [, ''])[1].toLowerCase(), info = { size: file.size };
+    try {
+      var magic = latin(await bytesAt(file, 0, 4));
+      if (magic === 'fLaC') await readFlac(file, info);
+      else if (magic.slice(0, 3) === 'ID3') await readId3(file, info);
+    } catch (e) { /* unreadable tags: fall back to the file name */ }
+    if (!info.duration) info.duration = await probeDuration(file);
+    if (!info.format) info.format = ext.toUpperCase();
+    if (!info.title) {   // "01 - Artist - Title.flac" → title (and artist)
+      var base = file.name.replace(/\.[^.]+$/, '').replace(/^\d{1,3}\s*[-._)]\s*/, ''), parts = base.split(/\s+-\s+/);
+      if (parts.length > 1 && !info.artist) { info.artist = parts.shift(); }
+      info.title = parts.join(' - ');
+    }
+    return info;
+  }
+
+  function fmtTime(s) { s = Math.round(s || 0); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+  function fmtSize(b) { return b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB'; }
 
   // ---------- pictures ----------
   function extFor(type, name) {
@@ -1150,6 +1395,12 @@ window.__startEditor = function () {
         if (h.kind === 'file') S.imageUrls.set('images/' + h.name, URL.createObjectURL(await h.getFile()));
       }
     } catch (e) { /* no images folder yet */ }
+    try {   // so the preview can play the music
+      var mus = await dir.getDirectoryHandle('music');
+      for await (var mh of mus.values()) {
+        if (mh.kind === 'file' && AUDIO_EXT.test(mh.name)) S.imageUrls.set('music/' + mh.name, URL.createObjectURL(await mh.getFile()));
+      }
+    } catch (e) { /* no music folder yet */ }
     S.dir = dir;
     loadData(data, 'folder');
     toast('Opened “' + dir.name + '” with ' + data.points.length + (data.points.length === 1 ? ' point.' : ' points.'));
@@ -1181,11 +1432,13 @@ window.__startEditor = function () {
       S.dir = dir;
     }
     try {
-      if (S.pending.size) {
-        var imgDir = await S.dir.getDirectoryHandle('images', { create: true });
-        for (var entry of S.pending) await writeFile(imgDir, entry[0].replace(/^images\//, ''), entry[1]);
-        S.pending.clear();
+      // new pictures go into images/, new music into music/
+      for (var entry of S.pending) {
+        var slash = entry[0].indexOf('/'), sub = slash > 0 ? entry[0].slice(0, slash) : 'images';
+        var sd = await S.dir.getDirectoryHandle(sub, { create: true });
+        await writeFile(sd, entry[0].slice(slash + 1), entry[1]);
       }
+      S.pending.clear();
       await writeFile(S.dir, 'timeline-data.js', serialize(S.data));
       if (S.source === 'example') S.source = 'folder';
       setDirty(false);
