@@ -851,14 +851,7 @@ window.__startEditor = function () {
     }
     else if (a === 'point-del') {
       if (!armed(b, 'Click again to delete')) return;
-      var title = point(id).title;
-      mutate(function (dd) {
-        dd.points = dd.points.filter(function (p) { return p.id !== id; });
-        dd.connections = dd.connections.filter(function (c) { return c.from !== id && c.to !== id; });
-      });
-      S.editing = null;
-      updatePreview(); render();
-      toast('Deleted “' + (title || 'Untitled') + '”. Press Undo to bring it back.');
+      deletePoint(id);
     }
     else if (a === 'type-add') {
       var tid = uniqueId('new-kind', ids(d.types));
@@ -1144,6 +1137,29 @@ window.__startEditor = function () {
   $('btn-save').addEventListener('click', save);
   $('btn-undo').addEventListener('click', undo);
   $('btn-redo').addEventListener('click', redo);
+
+  // Removes a point and its connections (Undo brings it back).
+  function deletePoint(id) {
+    var p = point(id);
+    if (!p) return;
+    mutate(function (dd) {
+      dd.points = dd.points.filter(function (x) { return x.id !== id; });
+      dd.connections = dd.connections.filter(function (c) { return c.from !== id && c.to !== id; });
+    });
+    S.editing = null;
+    updatePreview(); render();
+    toast('Deleted “' + (p.title || 'Untitled') + '”. Press Ctrl+Z to bring it back.');
+  }
+
+  // Del key: delete the point that's open, unless you're typing in a field
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Delete' || e.ctrlKey || e.metaKey || e.altKey) return;
+    var t = e.target;
+    if (t && (t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable || (t.tagName === 'INPUT' && isTextish(t)))) return;
+    if (S.tab !== 'points' || !S.editing || !point(S.editing)) return;
+    e.preventDefault();
+    deletePoint(S.editing);
+  });
 
   document.addEventListener('keydown', function (e) {
     if (!(e.ctrlKey || e.metaKey)) return;
