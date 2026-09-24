@@ -766,6 +766,7 @@
     this.world.innerHTML = drawMap(this.data, this.L, function (src) { return self._img(src); });
     this._dateBacks();
     this._loadPlaylist();
+    this._renderBackground();
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { self._dateBacks(); self._placePlayer(true); });  // widths change once the font arrives
     this.emptyEl.hidden = this.data.points.length > 0;
     var used = new Set(this.data.connections.filter(function (c) {
@@ -996,6 +997,51 @@
     var o = {};
     (this.L ? this.L.lines : []).forEach(function (R) { o[R.line.id] = { x: Math.round(R.x), y: Math.round(R.y) }; });
     return o;
+  };
+
+  // ---------- background video ----------
+  // settings.background = { webm: "video/bg.webm", mp4: "video/bg.mp4", still: "video/bg-still.jpg", dim: 0.55 }
+  // The video sits behind the map; a layer of the timeline's background colour (dim = how opaque) keeps everything readable.
+  P._renderBackground = function () {
+    var b = this.data.settings.background, st = this.stage, old = st.querySelector('.ctl-bgv'), self = this;
+    if (!b || !(b.webm || b.mp4 || b.still)) {
+      if (old) old.parentNode.removeChild(old);
+      this.root.classList.remove('ctl-has-bg');
+      return;
+    }
+    var key = JSON.stringify(b);
+    if (old && old.getAttribute('data-key') === key) return;   // unchanged: keep playing
+    if (old) old.parentNode.removeChild(old);
+    // a still picture only, for people who asked for less motion or to save data
+    var still = reducedMotion() || (navigator.connection && navigator.connection.saveData) || !(b.webm || b.mp4);
+    var wrap = document.createElement('div');
+    wrap.className = 'ctl-bgv';
+    wrap.setAttribute('aria-hidden', 'true');
+    wrap.setAttribute('data-key', key);
+    if (still) {
+      if (b.still) wrap.innerHTML = '<img src="' + esc(this._img(b.still)) + '" alt="">';
+    } else {
+      wrap.innerHTML = '<video muted autoplay loop playsinline preload="auto" disablepictureinpicture' + (b.still ? ' poster="' + esc(this._img(b.still)) + '"' : '') + '>' +
+        (b.webm ? '<source src="' + esc(this._img(b.webm)) + '" type="video/webm">' : '') +
+        (b.mp4 ? '<source src="' + esc(this._img(b.mp4)) + '" type="video/mp4">' : '') + '</video>';
+      var v = wrap.querySelector('video');
+      v.muted = true;   // must be set in script too, or some browsers refuse to autoplay
+      var play = function () { var p = v.play(); if (p && p.catch) p.catch(function () { /* stays on the still */ }); };
+      play();
+      if (!this._bgVisHook) {   // pause while the tab is hidden, to save battery
+        this._bgVisHook = true;
+        document.addEventListener('visibilitychange', function () {
+          var vid = self.stage.querySelector('.ctl-bgv video');
+          if (!vid) return;
+          if (document.hidden) vid.pause(); else { var p = vid.play(); if (p && p.catch) p.catch(function () {}); }
+        });
+      }
+    }
+    var tint = document.createElement('i');
+    tint.style.opacity = String(clamp(b.dim != null ? +b.dim : 0.55, 0, 1));
+    wrap.appendChild(tint);
+    st.insertBefore(wrap, st.firstChild);
+    this.root.classList.add('ctl-has-bg');
   };
 
   // ---------- music player ----------

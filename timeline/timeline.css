@@ -102,6 +102,11 @@ html:has(.ctl-full), body:has(.ctl-full) { height: 100%; overflow: hidden; overs
 .ctl-legend svg { width: 26px; height: 10px; overflow: visible; }
 .ctl-hint { color: var(--ctl-muted); }
 
+/* ---------- Background video (behind the map) ---------- */
+.ctl-bgv { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.ctl-bgv video, .ctl-bgv img { display: block; width: 100%; height: 100%; object-fit: cover; transform: scale(1.04); }
+.ctl-bgv i { position: absolute; inset: 0; background: var(--ctl-bg); }
+
 /* ---------- Music player (sits next to the map title) ---------- */
 .ctl-player {
   position: absolute; left: 0; top: 0; z-index: 5;
