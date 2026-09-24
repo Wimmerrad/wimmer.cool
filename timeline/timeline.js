@@ -784,7 +784,11 @@
     if (!src) return '';
     if (this.opts.resolveImage) { var u = this.opts.resolveImage(src); if (u) return u; }
     if (/^(data:|blob:|https?:|\/)/i.test(src)) return src;
-    return (this.opts.base != null ? this.opts.base : SCRIPT_BASE) + src;
+    // encode each folder / file name, so names with spaces, "#" or "?" still load
+    return (this.opts.base != null ? this.opts.base : SCRIPT_BASE) + String(src).split('/').map(function (part) {
+      try { part = decodeURIComponent(part); } catch (e) { /* not encoded */ }
+      return encodeURIComponent(part);
+    }).join('/');
   };
 
   P._syncTools = function () {

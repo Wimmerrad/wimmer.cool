@@ -1,4 +1,5 @@
 Put your music files in this folder (FLAC, MP3, OGG, WAV or M4A).
+Folders inside it are fine too, for example one folder per album or per series.
 
 Then, in timeline-editor.html:
   1. Open your timeline folder (button at the top right).

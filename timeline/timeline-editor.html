@@ -698,7 +698,7 @@ window.__startEditor = function () {
     var list = S.data.music || [], s = S.data.settings;
     var h = '<div class="ed-head"><h2>Music<small>' + list.length + '</small></h2>' +
       (HAS_FS ? '<button type="button" class="ed-btn primary small" data-a="music-scan">Scan music folder</button>' : '') + '</div>' +
-      '<p class="ed-note">Put your tracks in the <code>music</code> folder inside your timeline folder, then click <strong>Scan music folder</strong>. ' +
+      '<p class="ed-note">Put your tracks in the <code>music</code> folder inside your timeline folder (folders inside it are fine, e.g. one per album), then click <strong>Scan music folder</strong>. ' +
       'The editor reads each file’s own info: title, artist, album and track number, plus its properties (for FLAC: sample rate, bit depth and channels). FLAC, MP3, OGG, WAV and M4A all play.</p>' +
       (HAS_FS ? '<p class="ed-note">' + (S.dir ? '' : '<strong>Open your timeline folder first</strong> (top right) so the editor can see the music folder. ') +
         'You can also <label class="ed-link" style="cursor:pointer"><input type="file" id="music-input" accept="audio/*,.flac" multiple hidden>add files from elsewhere</label>; they’re copied into the music folder when you save.</p>'
@@ -706,7 +706,7 @@ window.__startEditor = function () {
       '<label class="ed-check"><input type="checkbox" data-sf="player"' + (s.player !== false ? ' checked' : '') + '> Show the music player next to the title</label>';
     if (!list.length) h += '<p class="ed-empty">No tracks yet.</p>';
     list.forEach(function (t, i) {
-      var file = String(t.src || '').split('/').pop();
+      var file = String(t.src || '').replace(/^music\//, '');   // shows the subfolder too, e.g. "Album/01 Song.flac"
       var props = [t.format, t.duration ? fmtTime(t.duration) : '', t.size ? fmtSize(t.size) : ''].filter(Boolean).join(' · ');
       h += '<div class="ed-card" data-mcard="' + i + '">' +
         '<div class="ed-grid" style="grid-template-columns:1.4fr 1fr">' +
@@ -726,6 +726,19 @@ window.__startEditor = function () {
     return h;
   }
 
+  // Every music file in a folder and the folders inside it (up to 8 levels deep; hidden folders are skipped).
+  // Returns [{ handle, path }] with paths like "Album/01 Song.flac".
+  async function findAudio(dir, prefix, depth) {
+    depth = depth || 0;
+    var out = [];
+    for await (var h of dir.values()) {
+      if (h.name.charAt(0) === '.') continue;
+      if (h.kind === 'file' && AUDIO_EXT.test(h.name)) out.push({ handle: h, path: prefix + h.name });
+      else if (h.kind === 'directory' && depth < 8) out = out.concat(await findAudio(h, prefix + h.name + '/', depth + 1));
+    }
+    return out;
+  }
+
   // Scan the music folder: new files are added, their info is read, and files that are gone are removed.
   async function scanMusic() {
     if (!S.dir) { toast('Open your timeline folder first (top right), then scan again.', true); return; }
@@ -733,11 +746,10 @@ window.__startEditor = function () {
     try { dir = await S.dir.getDirectoryHandle('music', { create: true }); }
     catch (e) { toast('Couldn’t open the music folder: ' + (e.message || e) + '.', true); return; }
     toast('Reading your music files…');
-    var found = [];
-    for await (var h of dir.values()) if (h.kind === 'file' && AUDIO_EXT.test(h.name)) found.push(h);
+    var found = await findAudio(dir, '');
     var old = new Map((S.data.music || []).map(function (t) { return [t.src, t]; })), fresh = [];
     for (var i = 0; i < found.length; i++) {
-      var file = await found[i].getFile(), src = 'music/' + found[i].name, info = await readAudioInfo(file);
+      var file = await found[i].handle.getFile(), src = 'music/' + found[i].path, info = await readAudioInfo(file);
       if (!S.imageUrls.has(src)) S.imageUrls.set(src, URL.createObjectURL(file));   // lets the preview play it
       var prev = old.get(src);
       // keep your own edits to title / artist / album; refresh the file's properties
@@ -748,7 +760,10 @@ window.__startEditor = function () {
       var ia = order.indexOf(a.src), ib = order.indexOf(b.src);
       if (ia >= 0 && ib >= 0) return ia - ib;   // tracks already listed keep your order
       if (ia >= 0 || ib >= 0) return ia >= 0 ? -1 : 1;   // new ones go at the end,
-      return (a.album || '').localeCompare(b.album || '') || (a.track || 0) - (b.track || 0) || a.src.localeCompare(b.src);   // by album and track number
+      var folder = function (t) { return t.src.slice(0, t.src.lastIndexOf('/')); };
+      return folder(a).localeCompare(folder(b), undefined, { numeric: true }) ||   // by subfolder,
+        (a.album || '').localeCompare(b.album || '') || (a.track || 0) - (b.track || 0) ||   // then album and track number
+        a.src.localeCompare(b.src, undefined, { numeric: true });
     });
     var gone = order.filter(function (src) { return !S.pending.has(src) && !fresh.some(function (t) { return t.src === src; }); }).length;
     var kept = (S.data.music || []).filter(function (t) { return S.pending.has(t.src); });   // added but not saved yet
@@ -1396,10 +1411,8 @@ window.__startEditor = function () {
       }
     } catch (e) { /* no images folder yet */ }
     try {   // so the preview can play the music
-      var mus = await dir.getDirectoryHandle('music');
-      for await (var mh of mus.values()) {
-        if (mh.kind === 'file' && AUDIO_EXT.test(mh.name)) S.imageUrls.set('music/' + mh.name, URL.createObjectURL(await mh.getFile()));
-      }
+      var mus = await findAudio(await dir.getDirectoryHandle('music'), '');
+      for (var mi = 0; mi < mus.length; mi++) S.imageUrls.set('music/' + mus[mi].path, URL.createObjectURL(await mus[mi].handle.getFile()));
     } catch (e) { /* no music folder yet */ }
     S.dir = dir;
     loadData(data, 'folder');
