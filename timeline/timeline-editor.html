@@ -1252,7 +1252,13 @@ window.__startEditor = function () {
       document.head.appendChild(css);
       var js = document.createElement('script');
       js.src = base + 'timeline.js';
-      js.onload = function () { window.TL_BASE = base; window.__startEditor(); };
+      js.onload = function () {
+        window.TL_BASE = base;
+        window.__startEditor();
+        var icon = document.createElement('script');   // animated tab icon
+        icon.src = base + 'favicon.js';
+        document.head.appendChild(icon);
+      };
       js.onerror = onFail;
       document.body.appendChild(js);
     };
