@@ -3,8 +3,8 @@
    Picture paths are relative to this folder. */
 window.TIMELINE_DATA = {
   "settings": {
-    "title": "Engines of Thought",
-    "subtitle": "Example timeline. Open timeline-editor.html to replace it with your own.",
+    "title": "Getter Robo Timeline/Order",
+    "subtitle": "",
     "view": "map",
     "showTitle": true,
     "spacing": 210,
@@ -21,7 +21,8 @@ window.TIMELINE_DATA = {
         "x": 130,
         "y": 650
       },
-      "continues": false
+      "continues": false,
+      "circleText": "name"
     },
     {
       "id": "theory",
@@ -29,9 +30,11 @@ window.TIMELINE_DATA = {
       "name": "Brain's Base OVA Trilogy",
       "color": "red",
       "pos": {
-        "x": 1030,
-        "y": 1020
-      }
+        "x": 1010,
+        "y": 1010
+      },
+      "circleText": "name",
+      "continues": false
     },
     {
       "id": "new-line",
@@ -101,7 +104,6 @@ window.TIMELINE_DATA = {
       "line": "mech",
       "title": "Getter Robo G",
       "date": "1975",
-      "summary": "Charles Babbage proposes a mechanical calculator to compute and print mathematical tables without human error.",
       "images": [
         {
           "src": "images/getterrobog-2.jpg"
@@ -114,14 +116,6 @@ window.TIMELINE_DATA = {
       "line": "mech",
       "title": "Getter Robo Go",
       "date": "1991",
-      "summary": "Babbage designs a general-purpose mechanical computer, with a “store” for memory and a “mill” for arithmetic.",
-      "description": "The engine was to be programmed with punched cards borrowed from the Jacquard loom. It was never completed in Babbage's lifetime, but its design already separated memory, processing, input and output.",
-      "links": [
-        {
-          "label": "Analytical Engine on Wikipedia",
-          "url": "https://en.wikipedia.org/wiki/Analytical_engine"
-        }
-      ],
       "images": [
         {
           "src": "images/getterrobogo.webp"
@@ -135,11 +129,6 @@ window.TIMELINE_DATA = {
       "line": "mech",
       "title": "Shin Getter Robo",
       "date": "1997",
-      "summary": "Electric punched-card tabulators count the 1890 U.S. census far faster than hand tallying.",
-      "description": "Herman Hollerith's company later merged into the firm that became IBM in 1924.",
-      "tags": [
-        "punched cards"
-      ],
       "look": "cover",
       "images": [
         {
@@ -148,62 +137,40 @@ window.TIMELINE_DATA = {
       ]
     },
     {
-      "id": "lovelace-notes",
-      "line": "theory",
-      "title": "Lovelace's Notes",
-      "date": "1843",
-      "caption": "The first published program",
-      "summary": "Ada Lovelace's notes on the Analytical Engine include a method for computing Bernoulli numbers.",
-      "description": "Lovelace translated Luigi Menabrea's article on the engine and added notes three times longer than the original.\n\nShe argued the machine could work on any symbols, not only numbers, and might one day compose music.",
-      "links": [
-        {
-          "label": "Ada Lovelace on Wikipedia",
-          "url": "https://en.wikipedia.org/wiki/Ada_Lovelace"
-        }
-      ],
-      "images": [
-        {
-          "src": "images/nigewaka-anime-2082798371321090545-01-ezgif-com--3.gif"
-        }
-      ],
-      "mapImage": true
-    },
-    {
-      "id": "boole",
-      "line": "theory",
-      "title": "Laws of Thought",
-      "date": "1854",
-      "summary": "George Boole treats logic as algebra: statements become true or false, 1 or 0."
-    },
-    {
       "id": "turing",
       "line": "theory",
-      "title": "On Computable Numbers",
-      "date": "1936",
-      "caption": "Turing's universal machine",
-      "summary": "Alan Turing describes a universal machine that can imitate any other by reading its description from a tape.",
-      "links": [
+      "title": "Getter Robo Armageddon",
+      "date": "1998",
+      "images": [
         {
-          "label": "Turing machine on Wikipedia",
-          "url": "https://en.wikipedia.org/wiki/Turing_machine"
+          "src": "images/armageddon.webp"
         }
-      ]
+      ],
+      "look": "cover"
     },
     {
       "id": "shannon",
       "line": "theory",
-      "title": "Logic in circuits",
-      "date": "1938",
-      "summary": "Claude Shannon shows that relay switching circuits can carry out Boolean algebra.",
-      "description": "His MIT master's thesis, “A Symbolic Analysis of Relay and Switching Circuits”, turned logic into something you could wire."
+      "title": "Shin Getter Robo vs. Neo Getter Robo",
+      "date": "2000",
+      "look": "cover",
+      "images": [
+        {
+          "src": "images/shinvsneo.webp"
+        }
+      ]
     },
     {
       "id": "edvac-report",
       "line": "theory",
-      "title": "The EDVAC report",
-      "date": "1945-06-30",
-      "caption": "Programs stored in memory",
-      "summary": "John von Neumann describes a computer that keeps its program in the same memory as its data."
+      "title": "New Getter Robo",
+      "date": "2004",
+      "look": "cover",
+      "images": [
+        {
+          "src": "images/newgetterrobo.webp"
+        }
+      ]
     },
     {
       "id": "getter-robo-arc",
@@ -220,7 +187,7 @@ window.TIMELINE_DATA = {
     {
       "id": "getter-robo-saga",
       "title": "Getter Robo Saga",
-      "date": "1804",
+      "date": "2002",
       "pos": {
         "x": 350,
         "y": 300
@@ -235,8 +202,8 @@ window.TIMELINE_DATA = {
       "line": "mech"
     },
     {
-      "id": "new-point",
-      "title": "New point",
+      "id": "getter-robo-toei",
+      "title": "Getter Robo (Toei)",
       "date": "1974",
       "line": "new-line",
       "look": "cover",
@@ -247,8 +214,8 @@ window.TIMELINE_DATA = {
       ]
     },
     {
-      "id": "new-point-2",
-      "title": "New point",
+      "id": "getter-robo-g-toei",
+      "title": "Getter Robo G (Toei)",
       "date": "1975",
       "line": "new-line",
       "look": "cover",
@@ -259,8 +226,8 @@ window.TIMELINE_DATA = {
       ]
     },
     {
-      "id": "new-point-3",
-      "title": "New point",
+      "id": "getter-robo-go-toei",
+      "title": "Getter Robo Go (Toei)",
       "date": "1991",
       "line": "new-line",
       "look": "cover",
@@ -333,6 +300,21 @@ window.TIMELINE_DATA = {
           "src": "images/greatgetter.webp"
         }
       ]
+    },
+    {
+      "id": "getter-robo-arc-2021",
+      "title": "Getter Robo Arc (Anime)",
+      "date": "2021",
+      "pos": {
+        "x": 1230,
+        "y": 290
+      },
+      "look": "cover",
+      "images": [
+        {
+          "src": "images/getteroboarcanime.webp"
+        }
+      ]
     }
   ],
   "connections": [
@@ -359,48 +341,58 @@ window.TIMELINE_DATA = {
     {
       "id": "c3",
       "from": "jacquard",
-      "to": "new-point",
+      "to": "getter-robo-toei",
       "type": "parallel",
       "note": "Loose adaptation"
     },
     {
       "id": "c4",
       "from": "difference-engine",
-      "to": "new-point-2",
+      "to": "getter-robo-g-toei",
       "type": "parallel",
       "note": "Loose adaptation"
     },
     {
       "id": "c5",
       "from": "analytical-engine",
-      "to": "new-point-3",
+      "to": "getter-robo-go-toei",
       "type": "parallel",
       "note": "Loose adaptation"
     },
     {
       "id": "c6",
-      "from": "new-point",
+      "from": "getter-robo-toei",
       "to": "getter-robo-movie",
       "type": "parallel",
       "note": "Theatrical release of episode 6"
     },
     {
       "id": "c7",
-      "from": "new-point-2",
+      "from": "getter-robo-g-toei",
       "to": "great-mazinger-vs-getter-robo-g-kuuchuu-dai-geki",
       "type": "parallel"
     },
     {
       "id": "c8",
-      "from": "new-point-2",
+      "from": "getter-robo-g-toei",
       "to": "grendizer-getter-robo-g-great-mazinger-kessen-da",
       "type": "parallel"
     },
     {
       "id": "c9",
-      "from": "new-point",
+      "from": "getter-robo-toei",
       "to": "great-mazinger-vs-getter-robo",
       "type": "parallel"
+    },
+    {
+      "id": "c10",
+      "from": "getter-robo-arc",
+      "to": "getter-robo-arc-2021",
+      "type": "led-to",
+      "toEnd": [
+        0,
+        160
+      ]
     }
   ],
   "music": [
