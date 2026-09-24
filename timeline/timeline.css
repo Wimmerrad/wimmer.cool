@@ -104,6 +104,8 @@ body:has(.ctl-full) { margin: 0; }
 .ctl-stage { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; }
 .ctl-map { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; touch-action: pan-y; -webkit-user-select: none; user-select: none; display: block; }
 .ctl-stage.is-panning .ctl-map { cursor: grabbing; }
+/* Chrome focuses the map itself on click and draws its default outline around it; stations keep their own focus ring */
+.ctl-map:focus, .ctl-map:focus-visible { outline: none; }
 .ctl-map text { font-family: var(--ctl-map-font); }
 .ctl-maptitle { font-weight: 900; font-style: italic; letter-spacing: -0.01em; fill: var(--ctl-title); }
 .ctl-mapsub { font-style: italic; fill: var(--ctl-muted); }
