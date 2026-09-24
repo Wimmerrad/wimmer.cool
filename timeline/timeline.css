@@ -60,6 +60,8 @@
 /* Full-window mode: data-height="full" or "height": "full" in the settings */
 .ctl.ctl-full { height: 100vh; height: 100dvh; min-height: 0; border: 0; border-radius: 0; }
 body:has(.ctl-full) { margin: 0; }
+/* The full-window map is the whole page: nothing to scroll, bounce or pull-to-refresh */
+html:has(.ctl-full), body:has(.ctl-full) { height: 100%; overflow: hidden; overscroll-behavior: none; }
 .ctl:fullscreen { height: 100vh; height: 100dvh; border-radius: 0; }
 .ctl-i { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 
@@ -181,7 +183,7 @@ body:has(.ctl-full) { margin: 0; }
 .ctl-btn:disabled { opacity: 0.35; cursor: default; }
 
 /* ---------- List view ---------- */
-.ctl-list { position: absolute; inset: 0; z-index: 4; overflow-y: auto; padding: 60px 20px 28px; background: var(--ctl-bg); }
+.ctl-list { position: absolute; inset: 0; z-index: 4; overflow-y: auto; overscroll-behavior: contain; padding: 60px 20px 28px; background: var(--ctl-bg); }
 .ctl-lgroup { margin: 0 0 26px; max-width: 760px; }
 .ctl-lhead { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; font-family: var(--ctl-map-font); font-style: italic; }
 .ctl-lhead b { display: inline-grid; place-items: center; min-width: 46px; height: 46px; padding: 0 6px; border-radius: 50%; background: var(--c); color: var(--on); font-weight: 800; font-size: 14px; }

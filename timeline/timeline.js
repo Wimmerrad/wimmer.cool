@@ -423,6 +423,17 @@
     this.svg.addEventListener('pointermove', function (e) { self._move(e); });
     this.svg.addEventListener('pointerup', function (e) { self._up(e); });
     this.svg.addEventListener('pointercancel', function (e) { self._up(e); });
+    // iPhone browsers ignore parts of touch-action, so claim map drags explicitly. This stops the page
+    // bouncing and Chrome's pull-to-refresh from kicking in while exploring. An embedded (not full-window)
+    // map only claims pinches, so one-finger vertical swipes still scroll the page around it.
+    var claimTouch = function (e) {
+      if (self.viewMode !== 'map') return;
+      if (root.classList.contains('ctl-full') || e.touches.length > 1) e.preventDefault();
+    };
+    this.svg.addEventListener('touchmove', claimTouch, { passive: false });
+    this.panel.addEventListener('touchmove', function (e) {
+      if (e.target.closest('.ctl-grab, .ctl-panel-top')) e.preventDefault();   // dragging the sheet handle
+    }, { passive: false });
     this.stage.addEventListener('wheel', function (e) { self._wheel(e); }, { passive: false });
     this.stage.addEventListener('gesturestart', function (e) { e.preventDefault(); self._gs = self.v.s; }, { passive: false });
     this.stage.addEventListener('gesturechange', function (e) {
