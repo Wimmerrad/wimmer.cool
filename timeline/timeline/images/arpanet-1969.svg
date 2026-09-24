@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 270" width="480" height="270">
+  <rect width="480" height="270" fill="#f1efe9"/>
+  <g stroke="#3a4450" stroke-width="3" fill="none">
+    <path d="M110 80L250 70M110 80L150 200M250 70L150 200M250 70L380 150"/>
+  </g>
+  <g fill="#ffffff" stroke="#3a4450" stroke-width="3">
+    <circle cx="110" cy="80" r="16"/><circle cx="250" cy="70" r="16"/><circle cx="150" cy="200" r="16"/><circle cx="380" cy="150" r="16"/>
+  </g>
+  <g font-family="Consolas, Menlo, monospace" font-size="18" fill="#1f262e">
+    <text x="62" y="50">UCSB</text>
+    <text x="232" y="38">SRI</text>
+    <text x="118" y="246">UCLA</text>
+    <text x="354" y="196">UTAH</text>
+  </g>
+</svg>
