@@ -126,7 +126,7 @@
   function normalize(raw) {
     var src = raw && typeof raw === 'object' ? raw : {};
     var data = {
-      settings: Object.assign({ title: '', subtitle: '', view: 'map', showTitle: true, spacing: 210, theme: 'night' }, src.settings || {}),
+      settings: Object.assign({ title: '', subtitle: '', view: 'map', showTitle: true, spacing: 210, theme: 'night', display: 'stations', coverWidth: 150 }, src.settings || {}),
       lines: [], types: [], points: [], connections: []
     };
     var rawLines = Array.isArray(src.lines) ? src.lines : Array.isArray(src.lanes) ? src.lanes : [];
@@ -192,9 +192,20 @@
     return d + 'L' + r1(last[0]) + ',' + r1(last[1]);
   }
 
+  // Sizes for the two looks: small ring "stations", or large framed "covers".
+  function geom(s) {
+    if (s.display === 'covers') {
+      var cw = clamp(parseInt(s.coverWidth, 10) || 150, 90, 320), ch = Math.round(cw * 1.42);
+      return { covers: true, CW: cw, CH: ch, TRACK: ch + 170, ABOVE: ch / 2 + 34, BELOW: ch / 2 + 118, MINSP: cw + 70 };
+    }
+    return { covers: false, TRACK: TRACK, ABOVE: ABOVE, BELOW: BELOW, MINSP: 140 };
+  }
+
   // Work out where every line, branch and station sits.
   function layout(data) {
-    var s = data.settings, SP = clamp(parseInt(s.spacing, 10) || 210, 140, 420);
+    var s = data.settings, G = geom(s);
+    var SP = Math.max(clamp(parseInt(s.spacing, 10) || 210, 140, 600), G.MINSP);
+    var TRACK = G.TRACK, ABOVE = G.ABOVE, BELOW = G.BELOW;
     var titleLines = s.showTitle !== false && s.title ? wrap(s.title, 18, 2) : [];
     var top = titleLines.length ? 40 + titleLines.length * 70 + (s.subtitle ? 44 : 0) : 20;
     var pos = new Map(), lines = [], y = top, right = 0;
@@ -237,7 +248,7 @@
     });
     var width = Math.max(right + 40, 700);
     lines.forEach(function (L) { L.endX = L.line.continues ? width : L.lastMainX; });
-    return { pos: pos, lines: lines, width: width, height: y + 10, top: top, titleLines: titleLines, SP: SP };
+    return { pos: pos, lines: lines, width: width, height: y + 10, top: top, titleLines: titleLines, SP: SP, G: G };
   }
 
   function arrowPath(tip, from, size) {
@@ -255,8 +266,48 @@
   }
 
   // Build the SVG markup for the whole map.
+  // One station in the "covers" look: a framed picture on the line, with its title, date and caption underneath.
+  function drawCover(P, id, G, img) {
+    var p = P.p, x = P.x, y = P.y, c = P.line._color, hw = G.CW / 2, hh = G.CH / 2, pic = p.images[0], h = '';
+    var box = 'x="' + r1(x - hw) + '" y="' + r1(y - hh) + '" width="' + G.CW + '" height="' + G.CH + '"';
+    h += '<rect class="ctl-cover-bg" ' + box + ' rx="4"/>';
+    if (pic) h += '<image href="' + esc(img(pic.src)) + '" ' + box + ' preserveAspectRatio="xMidYMid meet"/>';
+    else {
+      var tl = wrap(p.title || 'Untitled', Math.floor(G.CW / 10.5), 5);
+      h += textLines(tl, x, y + (tl.length - 1) * 10, 20, 'class="ctl-st-title" text-anchor="middle" font-size="17"');
+    }
+    h += '<rect class="ctl-cover-frame" ' + box + ' rx="4" stroke="' + c + '"/>';
+    h += '<rect class="ctl-halo" x="' + r1(x - hw - 8) + '" y="' + r1(y - hh - 8) + '" width="' + (G.CW + 16) + '" height="' + (G.CH + 16) + '" rx="8"/>';
+    // text under the cover
+    var width = G.CW + 50, ty = y + hh + 24;
+    if (pic) {   // without a picture the title is already inside the frame
+      var title = wrap(p.title || 'Untitled', Math.floor(width / 9.5), 2);
+      h += textLines(title, x, ty + (title.length - 1) * 19, 19, 'class="ctl-st-title" text-anchor="middle" font-size="16"');
+      ty += (title.length - 1) * 19 + 19;
+    } else ty -= 4;
+    var date = pointDate(p);
+    if (date) { h += '<text class="ctl-cv-date" x="' + x + '" y="' + ty + '" text-anchor="middle" font-size="12" fill="' + c + '">' + esc(date) + '</text>'; ty += 18; }
+    if (p.caption) {
+      var cap = wrap(p.caption, Math.floor(width / 7.2), 2);
+      h += textLines(cap, x, ty + (cap.length - 1) * 16, 16, 'class="ctl-st-cap" text-anchor="middle" font-size="13" fill="' + c + '"');
+    }
+    return '<g class="ctl-st ctl-cover" data-id="' + esc(id) + '" tabindex="0" role="button" aria-label="' + esc((p.title || 'Untitled') + (date ? ', ' + pointDate(p, true) : '')) + '" style="--c:' + c + '">' +
+      '<rect class="ctl-hit" x="' + r1(x - hw - 12) + '" y="' + r1(y - hh - 12) + '" width="' + (G.CW + 24) + '" height="' + (G.CH + 120) + '" rx="8"/>' + h + '</g>';
+  }
+
+  // Where a straight line from the centre of box b (towards q) leaves the box.
+  function boxEdge(c, q, b) {
+    var dx = q[0] - c[0], dy = q[1] - c[1];
+    var tx = dx > 0 ? (b.r - c[0]) / dx : dx < 0 ? (b.l - c[0]) / dx : Infinity;
+    var ty = dy > 0 ? (b.b - c[1]) / dy : dy < 0 ? (b.t - c[1]) / dy : Infinity;
+    var t = Math.min(tx, ty, 1);
+    return [c[0] + dx * t, c[1] + dy * t];
+  }
+
   function drawMap(data, L, img) {
-    var s = data.settings, SP = L.SP, out = [];
+    var s = data.settings, SP = L.SP, G = L.G, TRACK = G.TRACK, out = [];
+    // The area a cover and the text under it take up, around its centre
+    var coverBox = function (P) { return { l: P.x - G.CW / 2 - 6, r: P.x + G.CW / 2 + 6, t: P.y - G.CH / 2 - 6, b: P.y + G.CH / 2 + 84 }; };
     // Title
     if (L.titleLines.length) {
       out.push(textLines(L.titleLines, X0 - 36, 30 + L.titleLines.length * 70 - 12, 70, 'class="ctl-maptitle" font-size="68"'));
@@ -265,7 +316,7 @@
     // Where a line begins from a station on another line
     L.lines.forEach(function (R) {
       if (!R.start) return;
-      out.push('<path class="ctl-startlink" stroke="' + R.line._color + '" d="M' + R.start.x + ',' + (R.start.y + R_ST + 4) + 'V' + (R.y - R_T - 4) + '"/>');
+      out.push('<path class="ctl-startlink" stroke="' + R.line._color + '" d="M' + R.start.x + ',' + (R.start.y + (G.covers ? G.CH / 2 + 90 : R_ST + 4)) + 'V' + (R.y - R_T - 4) + '"/>');
     });
     // Tracks: branches first, then the main line on top
     L.lines.forEach(function (R) {
@@ -287,13 +338,28 @@
       var vertical = Math.abs(dy) > Math.abs(dx) * 0.35;
       var c1 = vertical ? [a.x, a.y + dy * 0.5] : [a.x + dx * 0.5, a.y], c2 = vertical ? [b.x, b.y - dy * 0.5] : [b.x - dx * 0.5, b.y];
       var off = function (p, q, d) { var l = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1; return [p[0] + (q[0] - p[0]) * d / l, p[1] + (q[1] - p[1]) * d / l]; };
-      var A = off([a.x, a.y], c1, R_ST + 5), B = off([b.x, b.y], c2, R_ST + 5);
+      var A, B;
+      if (G.covers) {
+        // leave from the edge of the cover (or the text under it) instead of its centre
+        A = boxEdge([a.x, a.y], c1, coverBox(a));
+        B = boxEdge([b.x, b.y], c2, coverBox(b));
+        B = off(B, c2, 4);
+      } else {
+        A = off([a.x, a.y], c1, R_ST + 5);
+        B = off([b.x, b.y], c2, R_ST + 5);
+      }
       var d = 'M' + r1(A[0]) + ',' + r1(A[1]) + 'C' + r1(c1[0]) + ',' + r1(c1[1]) + ' ' + r1(c2[0]) + ',' + r1(c2[1]) + ' ' + r1(B[0]) + ',' + r1(B[1]);
-      var dash = DASH[t.style || 'dashed'];
+      var dash = DASH[t.style || 'dashed'], note = '';
+      if (G.covers && c.note) {
+        // write the note along the link, like the notes on a hand-made chart
+        var m = [(A[0] + 3 * c1[0] + 3 * c2[0] + B[0]) / 8, (A[1] + 3 * c1[1] + 3 * c2[1] + B[1]) / 8];
+        var nl = wrap(c.note, 26, 3);
+        note = textLines(nl, m[0], m[1] + (nl.length - 1) * 7.5, 15, 'class="ctl-link-note" text-anchor="middle" font-size="11.5" fill="' + col + '"');
+      }
       out.push('<g class="ctl-link" data-c="' + esc(c.id) + '" data-from="' + esc(c.from) + '" data-to="' + esc(c.to) + '">' +
         '<path class="ctl-link-hit" d="' + d + '"/>' +
         '<path class="ctl-link-line" d="' + d + '" fill="none" stroke="' + col + '" stroke-width="2.6" stroke-linecap="round"' + (dash ? ' stroke-dasharray="' + dash + '"' : '') + '/>' +
-        (t.directed === false ? '' : '<path class="ctl-link-arrow" fill="' + col + '" d="' + arrowPath(B, c2) + '"/>') + '</g>');
+        (t.directed === false ? '' : '<path class="ctl-link-arrow" fill="' + col + '" d="' + arrowPath(B, c2) + '"/>') + note + '</g>');
     });
     // Line terminals
     L.lines.forEach(function (R) {
@@ -308,6 +374,7 @@
     // Stations
     L.pos.forEach(function (P, id) {
       var p = P.p, x = P.x, y = P.y, c = P.line._color, h = '';
+      if (G.covers) { out.push(drawCover(P, id, G, img)); return; }
       var pic = p.mapImage && p.images[0];
       if (pic) {
         h += '<image href="' + esc(img(pic.src)) + '" x="' + (x - 10) + '" y="' + (y - 84) + '" width="' + (SP - 24) + '" height="62" preserveAspectRatio="xMinYMax meet"/>';
@@ -528,6 +595,8 @@
     if (!this.opts.theme) this.root.setAttribute('data-theme', s.theme === 'paper' ? 'paper' : 'night');
     if (s.height && !this.opts.height) this._setHeight(s.height);
     if (this.selected && !this.data.byId.has(this.selected)) this.selected = null;
+    if (this.opts.display) this.data.settings.display = this.opts.display;   // data-display="covers" on the page wins
+    this.root.classList.toggle('ctl-covers', this.data.settings.display === 'covers');
     this.L = layout(this.data);
     this.world.innerHTML = drawMap(this.data, this.L, function (src) { return self._img(src); });
     this._dateBacks();
@@ -575,7 +644,7 @@
   // Put a solid block behind each date so the line stops cleanly around the text.
   P._dateBacks = function () {
     this.world.querySelectorAll('.ctl-date-bg').forEach(function (r) { r.remove(); });
-    this.world.querySelectorAll('.ctl-st-date').forEach(function (t) {
+    this.world.querySelectorAll('.ctl-st-date, .ctl-link-note').forEach(function (t) {
       var b;
       try { b = t.getBBox(); } catch (e) { return; }
       if (!b || !b.width) return;   // not drawn yet (e.g. list view is showing); redone on the next render
@@ -959,7 +1028,11 @@
       var name = el.getAttribute('data-timeline') || 'TIMELINE_DATA';
       var data = /^[A-Za-z_$][\w$]*$/.test(name) ? global[name] : null;
       if (!data) { el.textContent = 'Timeline data not found. Load timeline-data.js before timeline.js.'; return; }
-      el._ctl = mount(el, data, { height: el.getAttribute('data-height') || null, theme: el.getAttribute('data-theme') || null });
+      el._ctl = mount(el, data, {
+        height: el.getAttribute('data-height') || null,
+        theme: el.getAttribute('data-theme') || null,
+        display: el.getAttribute('data-display') || null
+      });
     });
   }
 

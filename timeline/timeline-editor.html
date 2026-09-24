@@ -599,6 +599,11 @@ window.__startEditor = function () {
       '<label class="ed-field"><span>Colours</span><select data-sf="theme">' +
         '<option value="night"' + (s.theme !== 'paper' ? ' selected' : '') + '>Night: bright lines on deep blue</option>' +
         '<option value="paper"' + (s.theme === 'paper' ? ' selected' : '') + '>Paper: lines on a light background</option></select></label>' +
+      '<label class="ed-field"><span>Look of the stations</span><select data-sf="display">' +
+        '<option value="stations"' + (s.display !== 'covers' ? ' selected' : '') + '>Stations: small rings, like a transit map</option>' +
+        '<option value="covers"' + (s.display === 'covers' ? ' selected' : '') + '>Covers: each point shows its first picture, large</option></select>' +
+        '<small>Covers suits box art, posters and book covers. Connection notes are written along the links.</small></label>' +
+      (s.display === 'covers' ? '<label class="ed-field"><span>Cover width (pixels)</span><input type="number" min="90" max="320" step="10" data-sf="coverWidth" value="' + esc(s.coverWidth || 150) + '"></label>' : '') +
       '<label class="ed-field"><span>Distance between stations (pixels)</span><input type="number" min="140" max="420" step="10" data-sf="spacing" value="' + esc(s.spacing || 210) + '"><small>Increase it if titles or dates get cut short.</small></label>' +
       '<label class="ed-field"><span>View when the page opens</span><select data-sf="view">' +
         '<option value="map"' + (s.view !== 'list' ? ' selected' : '') + '>Map</option>' +
@@ -771,7 +776,7 @@ window.__startEditor = function () {
         else d.settings[f] = t.value;
       }, 'set:' + f);
       if (f === 'view') tl.setView(t.value);
-      if (f === 'fullHeight') render();
+      if (f === 'fullHeight' || f === 'display') render();
     } else if (t.dataset.a === 'color-custom') {
       setColor(t, t.value, 'custom');
     }
