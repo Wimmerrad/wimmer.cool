@@ -530,6 +530,8 @@
     if (this.selected && !this.data.byId.has(this.selected)) this.selected = null;
     this.L = layout(this.data);
     this.world.innerHTML = drawMap(this.data, this.L, function (src) { return self._img(src); });
+    this._dateBacks();
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { self._dateBacks(); });  // widths change once the font arrives
     this.emptyEl.hidden = this.data.points.length > 0;
     var used = new Set(this.data.connections.filter(function (c) {
       return self.data.byId.get(c.from)._line !== self.data.byId.get(c.to)._line;
@@ -567,6 +569,24 @@
     this._syncTools();
     this.tip.hidden = true;
     if (this.viewMode === 'list') this._renderList();
+    else this._dateBacks();
+  };
+
+  // Put a solid block behind each date so the line stops cleanly around the text.
+  P._dateBacks = function () {
+    this.world.querySelectorAll('.ctl-date-bg').forEach(function (r) { r.remove(); });
+    this.world.querySelectorAll('.ctl-st-date').forEach(function (t) {
+      var b;
+      try { b = t.getBBox(); } catch (e) { return; }
+      if (!b || !b.width) return;   // not drawn yet (e.g. list view is showing); redone on the next render
+      var r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      r.setAttribute('class', 'ctl-date-bg');
+      r.setAttribute('x', r1(b.x - 5));
+      r.setAttribute('y', r1(b.y - 1));
+      r.setAttribute('width', r1(b.width + 10));
+      r.setAttribute('height', r1(b.height + 2));
+      t.parentNode.insertBefore(r, t);
+    });
   };
 
   P.setQuery = function (q) {

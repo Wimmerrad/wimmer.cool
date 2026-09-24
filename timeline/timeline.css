@@ -124,7 +124,8 @@ html:has(.ctl-full), body:has(.ctl-full) { height: 100%; overflow: hidden; overs
 .ctl-st.is-selected .ctl-halo { opacity: 1; }
 .ctl-halo { fill: none; stroke: var(--ctl-hi); stroke-width: 3; opacity: 0; }
 .ctl-st-title { font-weight: 800; font-style: italic; fill: var(--ctl-ink); }
-.ctl-st-date { font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; paint-order: stroke; stroke: var(--ctl-bg); stroke-width: 5px; stroke-linejoin: round; }
+.ctl-st-date { font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
+.ctl-date-bg { fill: var(--ctl-bg); }   /* block behind each date so the line breaks cleanly around it */
 .ctl-st-cap { font-style: italic; }
 .ctl-map.has-query .ctl-st:not(.is-match), .ctl-map.has-focus .ctl-st:not(.is-on) { opacity: 0.28; }
 .ctl-map.has-focus .ctl-link:not(.is-on) { opacity: 0.15; }
