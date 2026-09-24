@@ -858,6 +858,13 @@
     if (g.vert) this.v.ty = g.ty + dy;   // touch on an embedded map leaves vertical swipes to page scrolling
     this._apply();
   };
+  // Where each line's circle currently sits (the editor uses this to pin lines in place).
+  P.linePositions = function () {
+    var o = {};
+    (this.L ? this.L.lines : []).forEach(function (R) { o[R.line.id] = { x: Math.round(R.x), y: Math.round(R.y) }; });
+    return o;
+  };
+
   // Editor: the selected line's circle gets a highlight and can be dragged.
   P._selectLine = function (id) {
     this.selectedLine = id || null;

@@ -344,7 +344,13 @@ window.__startEditor = function () {
     onAddToLine: function (lineId) { addPoint({ line: lineId }); },
     // drag a line's circle: place the line there
     onMoveLine: function (lineId, xy) {
-      mutate(function (d) { var l = d.lines.find(function (x) { return x.id === lineId; }); if (l) l.pos = { x: xy.x, y: xy.y }; });
+      // Pin every other line where it is now, so taking this one out of the automatic layout doesn't shift the rest.
+      var now = tl.linePositions();
+      mutate(function (d) {
+        d.lines.forEach(function (l) { if (!l.pos && now[l.id]) l.pos = now[l.id]; });
+        var l = d.lines.find(function (x) { return x.id === lineId; });
+        if (l) l.pos = { x: xy.x, y: xy.y };
+      });
       updatePreview();
       if (S.tab === 'lanes') render();
     },
@@ -599,7 +605,9 @@ window.__startEditor = function () {
     var d = S.data;
     var h = '<div class="ed-head"><h2>Lines<small>' + d.lines.length + '</small></h2>' +
       '<button type="button" class="ed-btn primary small" data-a="lane-add">+ Add line</button></div>' +
-      '<p class="ed-note">Each line is one era, storyline or thread, drawn like a transit line with its label in a circle at the start. A line can start from a station on a line above it.</p>';
+      '<p class="ed-note">Each line is one era, storyline or thread, drawn like a transit line with its label in a circle at the start. A line can start from a station on a line above it.</p>' +
+      (d.lines.some(function (l) { return l.pos; })
+        ? '<p class="ed-note">Lines are placed by hand. <button type="button" class="ed-link" data-a="lanes-unpin-all">Put all lines back in the automatic layout</button></p>' : '');
     d.lines.forEach(function (l, i) {
       var n = d.points.filter(function (p) { return laneOf(p.line).id === l.id; }).length;
       var id = esc(l.id);
@@ -909,6 +917,11 @@ window.__startEditor = function () {
       if (li) { li.focus(); li.select(); }
     }
     else if (a === 'open-kind') openCard('types', 'data-tcard', b.dataset.tid);
+    else if (a === 'lanes-unpin-all') {
+      if (!armed(b, 'Click again to reset all positions')) return;
+      mutate(function (dd) { dd.lines.forEach(function (l) { delete l.pos; }); });
+      updatePreview(); render();
+    }
     else if (a === 'lane-unpin') {
       mutate(function (dd) { var l = dd.lines.find(function (x) { return x.id === b.dataset.lid; }); if (l) delete l.pos; });
       updatePreview(); render();
