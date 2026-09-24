@@ -154,6 +154,10 @@ html:has(.ctl-full), body:has(.ctl-full) { height: 100%; overflow: hidden; overs
 .ctl-ring { fill: var(--ctl-bg); stroke-width: 5.5; }
 .ctl-st { cursor: pointer; outline: none; }
 .ctl-st .ctl-hit { fill: transparent; }
+/* Only the ring (or a cover's picture) is clickable. Titles, dates, captions and small pictures
+   let clicks through, so links and lines behind them can still be clicked. */
+.ctl-st text, .ctl-st image, .ctl-st .ctl-date-bg, .ctl-st .ctl-cover-bg, .ctl-st .ctl-cover-frame, .ctl-st .ctl-halo { pointer-events: none; }
+.ctl-st:focus, .ctl-st:focus-visible { outline: none; }   /* keyboard focus shows as a dashed ring instead of a box around everything */
 .ctl-st:hover .ctl-ring, .ctl-st:focus-visible .ctl-ring { stroke-width: 7; }
 .ctl-st:focus-visible .ctl-hit { stroke: var(--ctl-hi); stroke-width: 2; stroke-dasharray: 4 4; }
 .ctl-st.is-selected .ctl-ring { fill: var(--c); }
