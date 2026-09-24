@@ -9,13 +9,18 @@ window.TIMELINE_DATA = {
     "showTitle": true,
     "spacing": 210,
     "theme": "night",
-    "height": "full"
+    "height": "full",
+    "titlePos": {
+      "x": 105,
+      "y": 155
+    },
+    "player": false
   },
   "lines": [
     {
       "id": "mech",
       "label": "",
-      "name": "Getter Robo",
+      "name": "Getter Robo Saga",
       "color": "red",
       "pos": {
         "x": 130,
@@ -40,11 +45,24 @@ window.TIMELINE_DATA = {
       "id": "new-line",
       "label": "Toei",
       "name": "",
-      "color": "orange",
+      "color": "yellow",
       "pos": {
         "x": 130,
         "y": 1010
       },
+      "continues": false,
+      "circleText": "name"
+    },
+    {
+      "id": "new-line-2",
+      "label": "",
+      "name": "Unrelated Spin-off manga",
+      "color": "violet",
+      "pos": {
+        "x": 130,
+        "y": 1730
+      },
+      "circleText": "name",
       "continues": false
     }
   ],
@@ -60,12 +78,12 @@ window.TIMELINE_DATA = {
     },
     {
       "id": "influenced",
-      "name": "Influenced",
+      "name": "Referenced",
       "inverse": "Influenced by",
       "color": "yellow",
       "style": "dashed",
-      "directed": true,
-      "description": "An idea or example that shaped later work"
+      "directed": false,
+      "description": "An idea or character that is seen in other works"
     },
     {
       "id": "parallel",
@@ -82,6 +100,13 @@ window.TIMELINE_DATA = {
       "style": "dotted",
       "directed": false,
       "description": "The same people were involved in both"
+    },
+    {
+      "id": "new-kind",
+      "name": "Part of",
+      "color": "green",
+      "style": "dashed",
+      "directed": false
     }
   ],
   "points": [
@@ -109,7 +134,8 @@ window.TIMELINE_DATA = {
           "src": "images/getterrobog-2.jpg"
         }
       ],
-      "look": "cover"
+      "look": "cover",
+      "summary": "Second entry in the Getter Robo Saga"
     },
     {
       "id": "analytical-engine",
@@ -122,7 +148,8 @@ window.TIMELINE_DATA = {
         }
       ],
       "mapImage": true,
-      "look": "cover"
+      "look": "cover",
+      "summary": "Third entry in the Getter Robo Saga"
     },
     {
       "id": "hollerith",
@@ -134,7 +161,8 @@ window.TIMELINE_DATA = {
         {
           "src": "images/shingetterobo.webp"
         }
-      ]
+      ],
+      "summary": "Fourth entry in the Getter Robo Saga"
     },
     {
       "id": "turing",
@@ -182,7 +210,8 @@ window.TIMELINE_DATA = {
         {
           "src": "images/getterroboarc.jpg"
         }
-      ]
+      ],
+      "summary": "Fifth and last entry in the Getter Robo Saga"
     },
     {
       "id": "getter-robo-saga",
@@ -211,7 +240,9 @@ window.TIMELINE_DATA = {
         {
           "src": "images/getterrobotoei.jpg"
         }
-      ]
+      ],
+      "summary": "Loose adaptation of the Getter Robo manga",
+      "description": "A mediocre show that is somewhat entertaining because of how absurd it is at times. It’s definitely nothing like the original manga, but the Toei version of the character kinda grew on me and is a fun part of Getter’s history. Though it is worth noting that this is the \"original\" vision of the Getter Robo project, and the manga version mostly came from Ken's creative freedom that he learned from Go Nagai, a very similar situation to Devilman."
     },
     {
       "id": "getter-robo-g-toei",
@@ -223,7 +254,9 @@ window.TIMELINE_DATA = {
         {
           "src": "images/getterrobogtoei.jpg"
         }
-      ]
+      ],
+      "summary": "Second part of the Toei show",
+      "description": "A mediocre follow-up to the original Toei show that doesn't bring anything new to the table outside of Benkei, which is a character that works well in the manga due to how calm and rational he is compared to Hayato and Ryoma, but here, since Ryoma and Hayato are rather calm, mostly just a bit eccentric, Benkei adds nothing and just acts as a boring, nature-loving asshole and a big brother for Genki. The other noteworthy addition is the shine spark move, which is a lot more iconic from the Toei version than the manga version. Other than that, it's just more of the same with less whackiness and just an overall bland episode; it lacks the so-bad-it's-good of the original, and it also lacks Musashi. The new bad guys also kinda sucks; no real stakes, it's pretty much just reskinned dinosaur people but treated as demons. Hidler was pretty fun though."
     },
     {
       "id": "getter-robo-go-toei",
@@ -251,7 +284,9 @@ window.TIMELINE_DATA = {
         {
           "src": "images/gettermovie.jpg"
         }
-      ]
+      ],
+      "summary": "Theatrical release of episode 6",
+      "description": "A poorly made movie cut of Episode 6 of Getter Robo, with letterboxing hiding half of the screen, and it's also not a very good episode either."
     },
     {
       "id": "great-mazinger-vs-getter-robo-g-kuuchuu-dai-geki",
@@ -267,7 +302,9 @@ window.TIMELINE_DATA = {
         {
           "src": "images/greatgetterg.webp"
         }
-      ]
+      ],
+      "description": "Another crossover movie, and not as good as the first one. I don't like the death of a certain character being reused as a lame plot point; he died saving the entire world, not from a random alien. There was barely any character interaction, too, mostly just fight scenes; it's whatever, just not canon and kinda mean.",
+      "summary": "Crossover between Getter Robo G and Great Mazinger"
     },
     {
       "id": "grendizer-getter-robo-g-great-mazinger-kessen-da",
@@ -283,7 +320,9 @@ window.TIMELINE_DATA = {
         {
           "src": "images/grendizergettergreat.jpg"
         }
-      ]
+      ],
+      "summary": "Crossover between Grendizer, Getter Robo G, and Great Mazinger",
+      "description": "Fun crossover with surprisingly high production value, a nice big finale for anyone who watched the Mazinger trilogy and Getter Toei duology."
     },
     {
       "id": "great-mazinger-vs-getter-robo",
@@ -299,7 +338,9 @@ window.TIMELINE_DATA = {
         {
           "src": "images/greatgetter.webp"
         }
-      ]
+      ],
+      "summary": "Crossover between Getter Robo G and Great Mazinger",
+      "description": "A cute movie that doesn't overstay its welcome. I wish it had a bit more character interaction, as most of it is just fight scenes, but the new antagonist had a good design, and overall this is kind of a throwaway movie you aren't supposed to take seriously, just a fun time with your favourite characters from 1974. It's just kinda weird that they decided to make them both aware of each other from the get-go when we've never seen them mentioned in each other's show."
     },
     {
       "id": "getter-robo-arc-2021",
@@ -307,7 +348,7 @@ window.TIMELINE_DATA = {
       "date": "2021",
       "pos": {
         "x": 1230,
-        "y": 290
+        "y": 260
       },
       "look": "cover",
       "images": [
@@ -315,6 +356,186 @@ window.TIMELINE_DATA = {
           "src": "images/getteroboarcanime.webp"
         }
       ]
+    },
+    {
+      "id": "getter-robo-darkness",
+      "title": "Getter Robo Darkness",
+      "date": "2009",
+      "line": "new-line-2",
+      "look": "cover",
+      "images": [
+        {
+          "src": "images/getterobodarkness2.webp"
+        }
+      ]
+    },
+    {
+      "id": "dino-getter",
+      "title": "Dino Getter",
+      "date": "2014",
+      "line": "new-line-2",
+      "look": "cover",
+      "images": [
+        {
+          "src": "images/dinogetter.jpg"
+        }
+      ]
+    },
+    {
+      "id": "chikyuu-taisen",
+      "title": "Chikyuu Taisen 2053",
+      "date": "2026",
+      "line": "new-line-2",
+      "look": "cover",
+      "images": [
+        {
+          "src": "images/chikyuu.webp"
+        }
+      ]
+    },
+    {
+      "id": "getter-robo-anthology-shinka-no-ishi",
+      "title": "Getter Robo Anthology: Shinka no Ishi",
+      "date": "2008",
+      "line": "new-line-2",
+      "look": "cover",
+      "images": [
+        {
+          "src": "images/getteroboanthology.webp"
+        }
+      ]
+    },
+    {
+      "id": "devilman-vs-getter-robo",
+      "title": "Devilman vs. Getter Robo",
+      "date": "2010",
+      "line": "new-line-2",
+      "look": "cover",
+      "images": [
+        {
+          "src": "images/getterobodevilman.jpg"
+        }
+      ]
+    },
+    {
+      "id": "getter-robo-devolution-the-last-3-minutes-of-the",
+      "title": "Getter Robo Devolution: The Last 3 Minutes of the Universe",
+      "date": "2015",
+      "line": "new-line-2",
+      "images": [
+        {
+          "src": "images/getterobodevolution.jpg"
+        }
+      ],
+      "look": "cover"
+    },
+    {
+      "id": "maou-dante-vs-getter-robo-g",
+      "title": "Maou Dante vs. Getter Robo G",
+      "date": "2011",
+      "line": "new-line-2",
+      "look": "cover",
+      "images": [
+        {
+          "src": "images/getterobogmaodante.jpg"
+        }
+      ]
+    },
+    {
+      "id": "getter-robo-high",
+      "title": "Getter Robo High",
+      "date": "2016",
+      "line": "new-line-2",
+      "look": "cover",
+      "images": [
+        {
+          "src": "images/getterobohigh.jpg"
+        }
+      ]
+    },
+    {
+      "id": "mazinkaiser-vs-shin-getter-robo",
+      "title": "Mazinkaiser vs. Shin Getter Robo",
+      "date": "1998",
+      "line": "new-line-2",
+      "look": "cover",
+      "images": [
+        {
+          "src": "images/getterobomazinkaiser.webp"
+        }
+      ]
+    },
+    {
+      "id": "shin-getter-robo-ibun-try-to-remember",
+      "title": "Shin Getter Robo!! Ibun: Try to Remember",
+      "date": "2001",
+      "line": "new-line-2",
+      "look": "cover",
+      "images": [
+        {
+          "src": "images/getterobostrangestory.jpg"
+        }
+      ]
+    },
+    {
+      "id": "getter-robo",
+      "title": "Getter Robo",
+      "date": "1975",
+      "line": "new-line-2",
+      "look": "cover",
+      "images": [
+        {
+          "src": "images/getterobotv.jpg"
+        }
+      ]
+    },
+    {
+      "id": "change-getter-robo-crater-battle",
+      "title": "Change!! Getter Robo: Crater Battle",
+      "date": "1998",
+      "line": "new-line-2",
+      "look": "cover",
+      "images": [
+        {
+          "src": "images/getterrobocrater.png"
+        }
+      ]
+    },
+    {
+      "id": "honey-vs",
+      "title": "Honey VS",
+      "date": "2012",
+      "line": "new-line-2",
+      "look": "cover",
+      "images": [
+        {
+          "src": "images/honeyvs.webp"
+        }
+      ]
+    },
+    {
+      "id": "super-robot-retsuden",
+      "title": "Super Robot Retsuden",
+      "date": "2002",
+      "line": "new-line-2",
+      "look": "cover",
+      "images": [
+        {
+          "src": "images/retsuden.jpg"
+        }
+      ]
+    },
+    {
+      "id": "getter-robo-hien-the-earth-suicide",
+      "title": "Getter Robo Hien: THE EARTH SUICIDE",
+      "date": "2007",
+      "line": "new-line-2",
+      "images": [
+        {
+          "src": "images/earthsuicide.jpg"
+        }
+      ],
+      "look": "cover"
     }
   ],
   "connections": [
@@ -322,10 +543,10 @@ window.TIMELINE_DATA = {
       "id": "c1",
       "from": "jacquard",
       "to": "getter-robo-saga",
-      "type": "led-to",
+      "type": "new-kind",
       "fromEnd": [
         0,
-        -119
+        -107
       ],
       "toEnd": [
         0,
@@ -336,7 +557,8 @@ window.TIMELINE_DATA = {
       "id": "c2",
       "from": "analytical-engine",
       "to": "hollerith",
-      "type": "led-to"
+      "type": "people",
+      "route": "straight"
     },
     {
       "id": "c3",
@@ -388,7 +610,7 @@ window.TIMELINE_DATA = {
       "id": "c10",
       "from": "getter-robo-arc",
       "to": "getter-robo-arc-2021",
-      "type": "led-to",
+      "type": "parallel",
       "toEnd": [
         0,
         160
@@ -398,7 +620,7 @@ window.TIMELINE_DATA = {
       "id": "c11",
       "from": "difference-engine",
       "to": "getter-robo-saga",
-      "type": "led-to",
+      "type": "new-kind",
       "toEnd": [
         0,
         159
@@ -408,7 +630,7 @@ window.TIMELINE_DATA = {
       "id": "c12",
       "from": "analytical-engine",
       "to": "getter-robo-saga",
-      "type": "led-to",
+      "type": "new-kind",
       "toEnd": [
         0,
         155
@@ -418,7 +640,7 @@ window.TIMELINE_DATA = {
       "id": "c13",
       "from": "hollerith",
       "to": "getter-robo-saga",
-      "type": "led-to",
+      "type": "new-kind",
       "toEnd": [
         0,
         159
@@ -428,10 +650,158 @@ window.TIMELINE_DATA = {
       "id": "c14",
       "from": "getter-robo-arc",
       "to": "getter-robo-saga",
-      "type": "led-to",
+      "type": "new-kind",
       "toEnd": [
         0,
         154
+      ]
+    },
+    {
+      "id": "c15",
+      "from": "edvac-report",
+      "to": "hollerith",
+      "type": "influenced",
+      "toEnd": [
+        75,
+        72
+      ],
+      "route": "straight",
+      "bends": [
+        [
+          1667,
+          840
+        ],
+        [
+          1110,
+          840
+        ],
+        [
+          1110,
+          722
+        ]
+      ],
+      "note": "could be considered a loose adaptation of Shin Getter Robo"
+    },
+    {
+      "id": "c16",
+      "from": "getter-robo-toei",
+      "to": "shannon",
+      "type": "influenced",
+      "toEnd": [
+        -71,
+        64
+      ],
+      "route": "straight",
+      "bends": [
+        [
+          450,
+          1083
+        ],
+        [
+          450,
+          1190
+        ],
+        [
+          1070,
+          1190
+        ],
+        [
+          1070,
+          1250
+        ],
+        [
+          1340,
+          1250
+        ],
+        [
+          1340,
+          1074
+        ]
+      ],
+      "fromEnd": [
+        74,
+        73
+      ],
+      "note": "Texas Mack appears in Shin vs. Neo"
+    },
+    {
+      "id": "c17",
+      "from": "shannon",
+      "to": "analytical-engine",
+      "type": "influenced",
+      "route": "straight",
+      "toEnd": [
+        73,
+        77
+      ],
+      "bends": [
+        [
+          1450,
+          880
+        ],
+        [
+          890,
+          880
+        ],
+        [
+          890,
+          727
+        ]
+      ],
+      "note": "Could be considered a loose adaptation of Getter Robo Go"
+    },
+    {
+      "id": "c18",
+      "from": "mazinkaiser-vs-shin-getter-robo",
+      "to": "hollerith",
+      "type": "new-kind",
+      "route": "straight",
+      "fromEnd": [
+        0,
+        -107
+      ],
+      "bends": [
+        [
+          570,
+          1570
+        ],
+        [
+          910,
+          1570
+        ],
+        [
+          910,
+          720
+        ]
+      ],
+      "toEnd": [
+        -73,
+        70
+      ]
+    },
+    {
+      "id": "c19",
+      "from": "change-getter-robo-crater-battle",
+      "to": "hollerith",
+      "type": "new-kind",
+      "route": "straight",
+      "bends": [
+        [
+          792,
+          1570
+        ],
+        [
+          910,
+          1570
+        ],
+        [
+          910,
+          720
+        ]
+      ],
+      "toEnd": [
+        -72,
+        70
       ]
     }
   ],
@@ -611,6 +981,17 @@ window.TIMELINE_DATA = {
       "album": "YAMATO SOUND ALMANAC1983-II「宇宙戦艦ヤマト完結編 音楽集 Part2」",
       "track": 16,
       "year": "2013"
+    }
+  ],
+  "texts": [
+    {
+      "id": "text",
+      "text": "   Both featured at the \nend of Shin Getter Robo",
+      "x": 610,
+      "y": 1535,
+      "color": "green",
+      "size": 14,
+      "italic": false
     }
   ]
 };
