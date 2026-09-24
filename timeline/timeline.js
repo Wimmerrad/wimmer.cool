@@ -43,7 +43,10 @@
     play: '<svg class="ctl-i ctl-fill" viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3.2v9.6L12.8 8z"/></svg>',
     pause: '<svg class="ctl-i ctl-fill" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 3h2.6v10H4.5zM8.9 3h2.6v10H8.9z"/></svg>',
     prevTrack: '<svg class="ctl-i ctl-fill" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 3h1.8v10H3.5zM13 3.2v9.6L6.2 8z"/></svg>',
-    nextTrack: '<svg class="ctl-i ctl-fill" viewBox="0 0 16 16" aria-hidden="true"><path d="M10.7 3h1.8v10h-1.8zM3 3.2v9.6L9.8 8z"/></svg>'
+    nextTrack: '<svg class="ctl-i ctl-fill" viewBox="0 0 16 16" aria-hidden="true"><path d="M10.7 3h1.8v10h-1.8zM3 3.2v9.6L9.8 8z"/></svg>',
+    vol: '<svg class="ctl-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6h2.5l3.5-3v10l-3.5-3H2.5z" fill="currentColor"/><path d="M11 5.5a3.5 3.5 0 0 1 0 5M12.8 3.6a6 6 0 0 1 0 8.8"/></svg>',
+    volLow: '<svg class="ctl-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6h2.5l3.5-3v10l-3.5-3H2.5z" fill="currentColor"/><path d="M11 5.5a3.5 3.5 0 0 1 0 5"/></svg>',
+    mute: '<svg class="ctl-i" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6h2.5l3.5-3v10l-3.5-3H2.5z" fill="currentColor"/><path d="M11 6l3.5 4M14.5 6 11 10"/></svg>'
   };
 
   // ---------- helpers ----------
@@ -527,6 +530,10 @@
             '<div class="ctl-track-text"><span class="ctl-track-name"></span></div>' +
             '<div class="ctl-track-bar" role="slider" aria-label="Position in the track" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0"><i></i></div>' +
           '</div>' +
+          '<div class="ctl-vol">' +
+            '<button type="button" class="ctl-pbtn" data-mp="mute" aria-label="Mute" title="Mute">' + ICON.vol + '</button>' +
+            '<input type="range" class="ctl-vol-range" min="0" max="100" step="1" value="80" aria-label="Volume" title="Volume">' +
+          '</div>' +
         '</div>' +
         '<aside class="ctl-panel" aria-label="Details">' +
           '<button type="button" class="ctl-grab" data-act="grab" aria-label="Show more or less of the details"></button>' +
@@ -1003,8 +1010,25 @@
       var b = e.target.closest('[data-mp]');
       if (!b) return;
       if (b.dataset.mp === 'play') self.togglePlay();
+      else if (b.dataset.mp === 'mute') { self.audio.muted = !self.audio.muted; self._volState(); }
       else self.skip(b.dataset.mp === 'next' ? 1 : -1);
     });
+    // Volume: remembered in this browser for next time
+    var range = pl.querySelector('.ctl-vol-range'), saved = null;
+    try { saved = global.localStorage.getItem('ctl-volume'); } catch (e) { /* storage blocked */ }
+    this.audio.volume = saved != null && isFinite(+saved) ? clamp(+saved, 0, 1) : 0.8;
+    range.value = String(Math.round(this.audio.volume * 100));
+    range.addEventListener('input', function () {
+      self.audio.volume = +range.value / 100;
+      self.audio.muted = +range.value === 0;
+      try { global.localStorage.setItem('ctl-volume', String(self.audio.volume)); } catch (e) { /* storage blocked */ }
+      self._volState();
+    });
+    // iPhones and iPads only allow the hardware buttons to set the volume, so show just the mute button there
+    var probe = new Audio();
+    probe.volume = 0.5;
+    if (probe.volume !== 0.5) range.hidden = true;
+    this._volState();
     var seek = function (e) {
       var a = self.audio, r = bar.getBoundingClientRect();
       if (a.duration) a.currentTime = clamp((e.clientX - r.left) / r.width, 0, 1) * a.duration;
@@ -1072,6 +1096,16 @@
     b.setAttribute('aria-label', playing ? 'Pause' : 'Play');
     b.title = playing ? 'Pause' : 'Play';
     this.player.classList.toggle('is-playing', playing);
+  };
+
+  P._volState = function () {
+    var a = this.audio, b = this.player.querySelector('[data-mp="mute"]'), range = this.player.querySelector('.ctl-vol-range');
+    var silent = a.muted || a.volume === 0;
+    b.innerHTML = silent ? ICON.mute : a.volume < 0.5 ? ICON.volLow : ICON.vol;
+    b.setAttribute('aria-label', silent ? 'Unmute' : 'Mute');
+    b.title = silent ? 'Unmute' : 'Mute';
+    range.style.setProperty('--ctl-vol', (silent ? 0 : Math.round(a.volume * 100)) + '%');
+    this.player.classList.toggle('is-muted', silent);
   };
 
   P._progress = function () {

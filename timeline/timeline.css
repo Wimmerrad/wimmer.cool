@@ -132,6 +132,17 @@ html:has(.ctl-full), body:has(.ctl-full) { height: 100%; overflow: hidden; overs
 .ctl-track-bar:hover, .ctl-track-bar:focus-visible { height: 6px; }
 .ctl-track-bar i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--ctl-hi); }
 .ctl .ctl-player.is-playing .ctl-pbtn-main { background: var(--ctl-hi); color: #10131c; }
+/* Volume: speaker button (mute) and a slider that fills in yellow */
+.ctl-vol { display: flex; align-items: center; gap: 2px; margin-left: 4px; }
+.ctl-vol-range {
+  -webkit-appearance: none; appearance: none; width: 76px; height: 4px; margin: 0 6px 0 0; border-radius: 2px; cursor: pointer;
+  background: linear-gradient(to right, var(--ctl-hi) var(--ctl-vol, 80%), var(--ctl-line-strong) var(--ctl-vol, 80%));
+}
+.ctl-vol-range::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 12px; height: 12px; border-radius: 50%; background: var(--ctl-ink); border: 0; }
+.ctl-vol-range::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--ctl-ink); border: 0; }
+.ctl-vol-range::-moz-range-track { background: transparent; }
+.ctl-vol-range:focus-visible { outline: 2px solid var(--ctl-hi); outline-offset: 4px; }
+.ctl-player.is-muted .ctl-vol-range { opacity: 0.5; }
 @media (prefers-reduced-motion: reduce) { .ctl-track.is-long .ctl-track-name { animation: none; } }
 
 /* ---------- Map ---------- */
@@ -287,6 +298,7 @@ html:has(.ctl-full), body:has(.ctl-full) { height: 100%; overflow: hidden; overs
 .ctl.ctl-narrow .ctl-search { flex: 1 1 110px; min-width: 0; }
 .ctl.ctl-narrow .ctl-search input { width: 100%; }
 .ctl.ctl-narrow .ctl-track { width: 160px; }
+.ctl.ctl-narrow .ctl-vol-range { display: none; }   /* phones: the phone's own volume buttons; the mute button stays */
 .ctl.ctl-narrow .ctl-tools [data-act="zoom-in"], .ctl.ctl-narrow .ctl-tools [data-act="zoom-out"] { display: none; }  /* pinch instead */
 .ctl.ctl-narrow .ctl-tools { left: 10px; max-width: none; flex-wrap: nowrap; }
 .ctl.ctl-narrow .ctl-legend { left: 10px; bottom: 10px; max-width: calc(100% - 20px); }
