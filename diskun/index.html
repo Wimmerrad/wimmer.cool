@@ -1,0 +1,827 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Checklist of all 249 Super Smash Bros. Melee special bonuses needed for the Diskun trophy, with auto-ticking from a Dolphin save file.">
+<meta name="theme-color" content="#070b1f">
+<meta property="og:title" content="Diskun Bonus Checklist">
+<meta property="og:description" content="All 249 Melee special bonuses for the Diskun trophy. Load your Dolphin save to tick the ones you have.">
+<meta property="og:url" content="https://wimmer.cool/diskun/">
+<title>Diskun Bonus Checklist</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:ital,wght@0,600;0,800;1,800&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: a Melee data-menu screen. Sticky progress header, filters, then the bonus list grouped like the game's own categories. */
+:root {
+  --bg: #070b1f;          /* menu night */
+  --panel: #0f1636;       /* list panel */
+  --panel-2: #172150;     /* hover / raised */
+  --line: #26306a;        /* hairlines */
+  --fg: #e9ecff;          /* text */
+  --muted: #9aa3d6;       /* secondary text */
+  --disk: #ffc83d;        /* Diskun yellow, the accent */
+  --disk-ink: #2a1a00;    /* text on the accent */
+  --red: #ff5a5f;         /* negative points */
+  --got: #57e0a8;         /* collected */
+  --display: "Saira Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --body: "Barlow", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { background: var(--bg); }
+body {
+  background: var(--bg) radial-gradient(1200px 500px at 85% -10%, #1a2a7a55, transparent 70%);
+  color: var(--fg); font-family: var(--body); font-size: 15px; line-height: 1.45;
+  min-height: 100%; margin: 0;
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.wrap {
+  max-width: 960px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 48px;
+}
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--disk); outline-offset: 2px; }
+
+/* header */
+.top { display: grid; grid-template-columns: auto 1fr; gap: 18px; align-items: center; }
+.trophy { width: 92px; height: 92px; flex: none; }
+.trophy .glow { opacity: 0; transition: opacity .6s; }
+.done .trophy .glow { opacity: 1; }
+h1 {
+  margin: 0; font-family: var(--display); font-weight: 800; font-style: italic; text-transform: uppercase;
+  font-size: clamp(30px, 6vw, 46px); line-height: .95; letter-spacing: .01em; text-wrap: balance;
+}
+h1 span { color: var(--disk); }
+.lede { margin: 6px 0 0; color: var(--muted); max-width: 62ch; }
+
+/* sticky progress + filters */
+.bar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  margin-top: 18px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px;
+  background: color-mix(in srgb, var(--panel) 92%, transparent); backdrop-filter: blur(8px);
+  display: grid; gap: 10px;
+}
+.prog { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.count { font-family: var(--display); font-weight: 800; font-size: 30px; line-height: 1; font-variant-numeric: tabular-nums; }
+.count small { font-size: 18px; color: var(--muted); font-weight: 600; }
+.togo { color: var(--muted); }
+.done .togo { color: var(--disk); font-weight: 600; }
+.sync { margin-left: auto; font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.sync i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); display: inline-block; }
+.sync.ok i { background: var(--got); }
+.sync.warn i { background: var(--disk); }
+.meter { height: 10px; border-radius: 6px; background: #0a0f29; overflow: hidden; border: 1px solid var(--line); }
+.meter b { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #e8a20c, var(--disk)); transition: width .35s ease; }
+.controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.search { flex: 1 1 200px; min-width: 0; height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: #0a0f29; }
+.search::placeholder { color: var(--muted); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { height: 34px; padding: 0 12px; border: 0; background: transparent; color: var(--muted); font-weight: 600; }
+.seg button[aria-pressed="true"] { background: var(--disk); color: var(--disk-ink); }
+.chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin; }
+.chip {
+  flex: none; height: 30px; padding: 0 10px; border-radius: 15px; border: 1px solid var(--line); background: transparent;
+  color: var(--muted); font-size: 13px; white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.chip[aria-pressed="true"] { border-color: var(--disk); color: var(--fg); background: var(--panel-2); }
+.chip.full { color: var(--got); }
+
+/* list */
+.group { margin-top: 22px; }
+.group h2 {
+  display: flex; align-items: baseline; gap: 10px; margin: 0 0 8px;
+  font-family: var(--display); font-weight: 800; font-style: italic; text-transform: uppercase; font-size: 20px; letter-spacing: .02em;
+}
+.group h2 small { font-family: var(--body); font-style: normal; font-weight: 500; font-size: 13px; color: var(--muted); text-transform: none; font-variant-numeric: tabular-nums; }
+.group h2.full small { color: var(--got); }
+.list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); gap: 6px; }
+.b {
+  display: grid; grid-template-columns: 26px 1fr auto; gap: 4px 12px; align-items: start; text-align: left; width: 100%;
+  padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel);
+  transition: background .15s, border-color .15s;
+}
+.b:hover { background: var(--panel-2); }
+.box { width: 22px; height: 22px; margin-top: 1px; border-radius: 6px; border: 2px solid var(--muted); display: grid; place-items: center; }
+.box svg { width: 14px; height: 14px; opacity: 0; transform: scale(.6); transition: .15s; }
+.b[aria-pressed="true"] { border-color: color-mix(in srgb, var(--got) 45%, var(--line)); background: color-mix(in srgb, var(--got) 7%, var(--panel)); }
+.b[aria-pressed="true"] .box { background: var(--got); border-color: var(--got); }
+.b[aria-pressed="true"] .box svg { opacity: 1; transform: none; }
+.b[aria-pressed="true"] .nm { color: var(--muted); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--got) 70%, transparent); }
+.nm { font-weight: 600; min-width: 0; }
+.pts { font-family: var(--display); font-weight: 600; font-size: 15px; color: var(--disk); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+.pts.neg { color: var(--red); }
+.pts em { font-style: normal; color: var(--muted); font-size: 12px; }
+.req { grid-column: 2 / 4; color: var(--muted); font-size: 13.5px; min-width: 0; }
+.empty { margin-top: 28px; color: var(--muted); text-align: center; }
+
+/* save import */
+.imp {
+  margin-top: 16px; padding: 12px 14px; border: 1px dashed var(--line); border-radius: 10px; background: #0b1130;
+  display: grid; grid-template-columns: 1fr auto; gap: 6px 14px; align-items: center; transition: border-color .15s, background .15s;
+}
+.imp.over { border-color: var(--disk); background: var(--panel-2); }
+.imp h3 { margin: 0; font-family: var(--display); font-weight: 800; font-style: italic; text-transform: uppercase; font-size: 17px; letter-spacing: .02em; }
+.imp p { margin: 0; color: var(--muted); font-size: 13.5px; min-width: 0; }
+.imp code { font-size: 12.5px; color: var(--fg); overflow-wrap: anywhere; }
+.imp .load { grid-row: 1 / 3; grid-column: 2; height: 38px; padding: 0 16px; border: 0; border-radius: 8px; background: var(--disk); color: var(--disk-ink); font-weight: 600; white-space: nowrap; }
+.imp details { grid-column: 1 / -1; color: var(--muted); font-size: 13.5px; }
+.imp summary { cursor: pointer; color: var(--fg); width: fit-content; }
+.imp ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 4px; }
+.imp-msg { grid-column: 1 / -1; font-size: 14px; display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; }
+.imp-msg[hidden] { display: none; }
+.imp-msg.ok { color: var(--got); }
+.imp-msg.err { color: var(--red); }
+.imp-msg button { height: 30px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--line); background: transparent; color: var(--fg); font-size: 13px; }
+@media (max-width: 520px) { .imp { grid-template-columns: 1fr; } .imp .load { grid-row: auto; grid-column: 1; justify-self: start; } }
+
+.foot { margin-top: 34px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; display: grid; gap: 8px; }
+.foot a { color: var(--fg); }
+.reset { justify-self: start; height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: transparent; color: var(--muted); }
+.reset.armed { border-color: var(--red); color: var(--red); }
+
+@media (max-width: 520px) {
+  .top { grid-template-columns: 1fr; }
+  .trophy { width: 64px; height: 64px; }
+  .sync { margin-left: 0; width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="wrap" id="app">
+  <header class="top">
+    <svg class="trophy" viewBox="0 0 96 96" aria-hidden="true">
+      <circle class="glow" cx="48" cy="40" r="38" fill="#ffc83d" opacity=".18"/>
+      <!-- Diskun: a yellow disk with eyes and little red feet, on a trophy base -->
+      <path d="M22 70h52l4 10H18z" fill="#3a447e"/><path d="M18 80h60v6H18z" fill="#262f63"/>
+      <rect x="27" y="14" width="42" height="50" rx="5" fill="#ffc83d"/>
+      <path d="M58 14h11v11z" fill="#070b1f"/>
+      <rect x="33" y="19" width="24" height="12" rx="2" fill="#e8a20c"/>
+      <ellipse cx="40" cy="43" rx="4" ry="6" fill="#1b1b2b"/><ellipse cx="56" cy="43" rx="4" ry="6" fill="#1b1b2b"/>
+      <circle cx="41.4" cy="40.6" r="1.6" fill="#fff"/><circle cx="57.4" cy="40.6" r="1.6" fill="#fff"/>
+      <path d="M43 53q5 4 10 0" stroke="#1b1b2b" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+      <path d="M33 64h10v6H31zM53 64h10l2 6H53z" fill="#d6252b"/>
+    </svg>
+    <div>
+      <h1>Every bonus for <span>Diskun</span></h1>
+      <p class="lede">Earn all 249 special bonuses in Super Smash Bros. Melee at least once and the Diskun trophy is yours. Tick them off as you go. In the game, Data → Special Bonus shows the ones you already have.</p>
+    </div>
+  </header>
+
+  <section class="imp" id="imp" aria-label="Read a Dolphin save">
+    <h3>Tick them from your save</h3>
+    <p>Pick or drop your Melee save from Dolphin and every bonus it has gets ticked. The file is read right here on the page and never uploaded.</p>
+    <button type="button" class="load" id="load">Load save file</button>
+    <input type="file" id="file" accept=".gci,.raw,.gcs,.sav,.bin" multiple hidden>
+    <details>
+      <summary>Where is my save?</summary>
+      <ul>
+        <li>Dolphin's user folder (usually <code>Documents\Dolphin Emulator</code>, or Dolphin's own <code>User</code> folder in portable builds like Slippi), then <code>GC\USA\Card A</code>. The file is <code>01-GALE-SuperSmashBros0110290334.gci</code>. Use <code>EUR</code> or <code>JAP</code> for other regions.</li>
+        <li>If your card is one big file instead, pick <code>GC\MemoryCardA.USA.raw</code>. The Melee save is found inside it.</li>
+        <li>Anywhere else: in Dolphin, open Tools → Memory Card Manager and export the Melee save as a .gci.</li>
+        <li>The game writes the save when you leave a match or menu, so finish what you're doing before you load the file.</li>
+      </ul>
+    </details>
+    <div class="imp-msg" id="impMsg" role="status" hidden></div>
+  </section>
+
+  <section class="bar" aria-label="Progress and filters">
+    <div class="prog">
+      <span class="count" id="count">0 <small>/ 249</small></span>
+      <span class="togo" id="togo">249 to go</span>
+      <span class="sync" id="sync"><i></i><span id="syncText">Saved in this browser</span></span>
+    </div>
+    <div class="meter" role="progressbar" aria-label="Bonuses collected" aria-valuemin="0" aria-valuemax="249" id="meter"><b id="fill"></b></div>
+    <div class="controls">
+      <input class="search" id="q" type="search" placeholder="Search bonuses or how to get them" aria-label="Search bonuses">
+      <div class="seg" role="group" aria-label="Show">
+        <button type="button" id="show-all" data-show="all" aria-pressed="true">All</button>
+        <button type="button" id="show-missing" data-show="missing" aria-pressed="false">Missing</button>
+        <button type="button" id="show-got" data-show="got" aria-pressed="false">Collected</button>
+      </div>
+    </div>
+    <div class="chips" id="chips" role="group" aria-label="Category"></div>
+  </section>
+
+  <main id="list"></main>
+  <p class="empty" id="empty" hidden>No bonuses match.</p>
+
+  <footer class="foot">
+    <span>Points marked <b>each</b> are given every time it happens in a match. A few extra bonuses only exist through Action Replay codes and aren't needed for Diskun.</span>
+    <span>Bonus list from the <a href="https://www.ssbwiki.com/List_of_bonuses" target="_blank" rel="noopener">SmashWiki list of bonuses</a>, which has the exact conditions and version notes.</span>
+    <button type="button" class="reset" id="reset">Clear all ticks</button>
+  </footer>
+</div>
+
+<script>
+// [name, points, how to get it, each?]  points: number, or text when it depends on the game version
+const GROUPS = [
+ ["Attacks", [
+  ["Bird of Prey",4000,"Use only aerial attacks."],
+  ["Combo King",2500,"Land lots of combos (2.5 hits or more on average)."],
+  ["Juggler",1500,"Keep hitting a foe while they stay in the air."],
+  ["Backstabber",2000,"Hit foes from behind about 70% of the time."],
+  ["Sweeper",2500,"Make most of your attacks low attacks."],
+  ["Clean Sweep",5000,"Use nothing but low attacks, like down tilts and down smashes."],
+  ["Meteor Smash",800,"KO a foe with a meteor smash.",1],
+  ["Meteor Clear",3000,"Finish the stage with a meteor smash."],
+  ["Meteor Master",8000,"Every meteor smash you use hits and KOs (at least 2)."],
+  ["Meteor Survivor",2000,"Get meteor smashed in the air and still recover.",1],
+  ["Flying Meteor",4000,"Meteor smash a foe who is already reeling.",1],
+  ["Exceptional Aim",4000,"Make most of your attacks connect."],
+  ["Perfect Aim",10000,"Never miss, while attacking at least 8 times a minute."],
+  ["All Ground",6000,"Hit with every standard ground attack at least once."],
+  ["All Aerial",4000,"Hit with every standard aerial at least once."],
+  ["All Variations",10000,"Use every attack except final blows on your foes."],
+  ["All on One",20000,"Use every attack except final blows on one single foe."],
+  ["Lethal Weapon",7000,"Hit with a wide spread of moves. One known way: every aerial, smash and special on a foe, with no misses and nothing else."],
+  ["Berserker",3500,"Average 60 attacks a minute."],
+  ["Smash King",3000,"Make at least half of your hits smash attacks."],
+  ["Smash Maniac",3500,"Use only smash attacks."],
+  ["Smash-less",1500,"Never use a smash attack."],
+  ["Specialist",2200,"Use only special moves."],
+  ["Dedicated Specialist",3100,"Use one single move all match, and make it a special move."],
+  ["One-Two Punch",1800,"Land a full neutral attack combo."],
+  ["First Strike",500,"Land the first hit of the match."],
+  ["Sniper",2000,"Hit only with projectiles."],
+  ["Brawler",2000,"Hit only with direct attacks, no projectiles."],
+  ["Precise Aim",10000,"Every attack hits on the very first frame its hitbox comes out."],
+  ["Climactic Clash",1200,"Hit the same foe with stronger and stronger blows, like a jab, then a tilt, then a smash.",1],
+  ["Stale Moves",-2000,"40% or more of your attacks are the same move (with 16 attacks or more)."]
+ ]],
+ ["Damage", [
+  ["150% Damage",1000,"Survive past 150% on one stock. Counts even if that hit KOs you. Not in team battles."],
+  ["200% Damage",3000,"Survive past 200% on one stock."],
+  ["250% Damage",7000,"Survive past 250% on one stock."],
+  ["300% Damage",10000,"Survive past 300% on one stock."],
+  ["350% Damage",15000,"Survive past 350% on one stock."],
+  ["Heavy Damage",20000,"Survive past 400% on one stock."],
+  ["Floored",300,"Take over 200% from damaging floors like Mute City's track. The in-game text understates it."],
+  ["Punching Bag",100,"Get bounced between two foes on opposite sides (28% or more in one combo)."],
+  ["Moment of Silence",3000,"Take no damage for a full minute. Not given if you also get Impervious."],
+  ["Impervious",7000,"Never take any damage."],
+  ["Blind Eye",3000,"Only ever get hit from behind."]
+ ]],
+ ["Grabs & throws", [
+  ["Pitcher",6000,"Fight with nothing but grabs and throws."],
+  ["Butterfingers",-500,"Miss most of your grabs."],
+  ["All Thumbs",-1500,"Miss every dash grab (4 at least)."],
+  ["Cuddly Bear",2000,"Grab 3 times or more without ever pummeling or throwing."],
+  ["Compass Tosser",3500,"Use all four throws."],
+  ["Throw Down",2500,"Finish the stage with a throw."],
+  ["Pummeler",1500,"Deal a lot of damage by pummeling."],
+  ["Fists of Fury",2500,"Always pummel your grabs and never throw."],
+  ["Close Call",2000,"Throw a foe just before they break free."]
+ ]],
+ ["Movement", [
+  ["Opportunist",-1000,"Go 30 seconds without attacking."],
+  ["Spectator",-2500,"Spend a long time standing on sloped ground."],
+  ["Statue",500,"Barely move left or right."],
+  ["Never Look Back",5000,"Never turn around."],
+  ["Stiff Knees",300,"Never crouch."],
+  ["Run, Don't Walk",6500,"Never walk, apart from tiny steps."],
+  ["Ambler",2500,"Walk a lot."],
+  ["No Hurry",1000,"Never dash. Standing still all match earns this and Run, Don't Walk together."],
+  ["Marathon Man",2000,"Run a lot."],
+  ["Eagle",1500,"Spend a lot of time in the air."],
+  ["Aerialist",2500,"Never jump from the ground; only use midair jumps."],
+  ["Acrobat",3000,"Use a midair jump on every trip into the air."],
+  ["Cement Shoes",4000,"Never jump at all."],
+  ["Head Banger",800,"Hit walls 3 times or more a minute."],
+  ["Elbow Room",2000,"Bump into or push foes a lot."],
+  ["Floor Diver",1500,"Drop through soft platforms often, about 12 times a minute."],
+  ["Skid Master",1000,"Skid at least 9 feet in a minute."],
+  ["Friendly Foe",3000,"Never push a foe."],
+  ["Center Stage",2000,"Stay in the middle of the stage most of the time."],
+  ["Coward",-500,"Keep far away from foes for a long time."],
+  ["In the Fray",2000,"Stay very close to foes on average."]
+ ]],
+ ["Shields & ledges", [
+  ["Power Shielder",5000,"Powershield 3 times or more in a minute. Projectiles don't count."],
+  ["Shield Buster",2500,"Break a foe's shield.",1],
+  ["Shattered Shield",-1000,"Get your shield broken.",1],
+  ["Shield Stupidity",-2000,"Break your own shield.",1],
+  ["Shield Saver",500,"Drop your shield just before it breaks (3 HP or less left)."],
+  ["Rock Climber",800,"Hang from ledges 4 times or more in a minute."],
+  ["Edge Hog",2500,"Take a ledge first so a foe can't grab it.",1],
+  ["Cliff Hanger",2000,"Hang from ledges several times before getting KO'd."],
+  ["Life on the Edge",800,"Get knocked off, then grab a ledge without using a midair jump.",1],
+  ["Cliff Diver",500,"Let go of a ledge and fall."],
+  ["Twinkle Toes",2500,"Tech every time you try."],
+  ["Rock Steady",3000,"Never get knocked down onto the ground."],
+  ["Pratfaller",1500,"Always land face up."],
+  ["Face Planter",1500,"Always land face down."]
+ ]],
+ ["Taunts & habits", [
+  ["Poser",2000,"Taunt 6 times or more in a minute."],
+  ["Poser Poseur",500,"Taunt one second after someone else does.",1],
+  ["Poser Power",700,"Hit a foe with a taunt. Only Luigi can.",1],
+  ["Pose Breaker",800,"Hit a taunting foe with a weak attack.",1],
+  ["Instant Poser",100,"Taunt within one second of KOing a foe.",1],
+  ["Control Freak",1000,"Tap the Control Stick twice as fast as the next fastest player."],
+  ["Button Masher",700,"Press buttons twice as fast as the next fastest player."],
+  ["Button Holder",4000,"Hold A or B down for the whole match."],
+  ["No R 4 U",300,"Never press L or R."],
+  ["Crowd Favorite",2500,"Get the crowd cheering for you."],
+  ["Master of Suspense",2500,"Make the crowd gasp 3 times or more a minute."],
+  ["Lost in Space",2000,"Spend at least a quarter of the match in the magnifying glass."],
+  ["Lost Luggage",3000,"Show up in the magnifying glass on all four sides of the screen."]
+ ]],
+ ["Peace & survival", [
+  ["Half-Minute Man",2500,"Clear the stage within 30 seconds."],
+  ["Pacifist",3000,"Never attack, not even a miss."],
+  ["Peaceful Warrior",5000,"Never attack, and still don't lose."],
+  ["Immortal",5000,"Never get knocked off the stage."],
+  ["Switzerland",12000,"Never attack and never take damage."],
+  ["Merciful Master",3000,"Win without KOing anyone."],
+  ["Down, But Not Out",2000,"Get knocked down and back up more than anyone else."],
+  ["Solar Being",800,"Only ever get Star KO'd."],
+  ["Predator",-1500,"Keep attacking foes who already have high damage. Needs 3 players or more."],
+  ["Stalker",-1000,"Attack one particular foe most of the time. Needs 3 players or more, or teams."],
+  ["Bully",-2000,"KO only one particular foe, 3 times or more. Needs 3 players or more, or teams."]
+ ]],
+ ["KOs", [
+  ["Star KO",300,"Star KO a foe.",1],
+  ["Rocket KO",5000,"Star KO every foe on a team."],
+  ["Wimpy KO",4000,"KO a foe with a weak attack.",1],
+  ["Bull's-eye KO",800,"KO with a shooting item. A fully charged Shadow Ball or Charge Shot works too.",1],
+  ["Poser KO",5000,"KO a foe with a taunt. Only Luigi can.",1],
+  ["Cheap KO",500,"KO a foe from behind.",1],
+  ["Bank-Shot KO",3000,"KO a foe with a reflected item.",1],
+  ["Timely KO",3500,"KO a foe with under 5 seconds left.",1],
+  ["Special KO",800,"KO a foe with a special move.",1],
+  ["Hangman's KO",2000,"KO a foe who is hanging from a ledge.",1],
+  ["KO 64",640,"KO a foe who is at 64% damage.",1],
+  ["Bubble-Blast KO",1200,"KO a foe who is inside a hoop.",1],
+  ["Sacrificial KO",1500,"KO a foe and yourself with the same attack.",1],
+  ["Avenger KO",2500,"KO a foe within 5 seconds of them KOing you.",1],
+  ["Double KO",2000,"KO two foes with one attack.",1],
+  ["Triple KO",4000,"KO three foes with one attack.",1],
+  ["Quadruple KO",8000,"KO four foes with one attack.",1],
+  ["Quintuple KO",15000,"KO five foes with one attack.",1],
+  ["Dead-Weight KO",4000,"Pick up an enemy like a Goomba, Koopa, ReDead, Octorok, Like Like, Topi or Polar Bear and throw it into a foe for a KO. Koopa shells count. They mostly appear in Adventure, but containers can drop them anywhere.",1],
+  ["Kiss-the-Floor KO",1000,"Launch a foe onto a damaging floor for a KO.",1],
+  ["Assisted KO",1500,"A foe gets KO'd by a stage hazard, like an Arwing on Corneria or a car in Onett.",1],
+  ["Foresight",500,"Get Screen KO'd.",1]
+ ]],
+ ["Falls & finishes", [
+  ["First to Fall",-1000,"Be the first one KO'd in a VS match."],
+  ["Quitter",-1000,"Fall off without using a double or triple jump to recover.",1],
+  ["Shameful Fall",-1500,"Get KO'd while under 50% by a foe who is over 100%.",1],
+  ["World Traveler",2000,"Get KO'd off all four sides of the screen."],
+  ["Ground Pounded",500,"Get KO'd by landing on a damaging floor.",1],
+  ["Environmental Hazard",1000,"Get KO'd by part of the stage.",1],
+  ["Angelic",2000,"End the match standing on a revival platform."],
+  ["Magnified Finish",1000,"End the match inside the magnifying glass."],
+  ["Fighter Stance",500,"End the match mid-taunt."],
+  ["Mystic",2000,"End the match offscreen."],
+  ["Shooting Star",1500,"End the match while being Star KO'd."],
+  ["Lucky Number Seven",3000,"Finish the stage with :07 left on the clock."],
+  ["Last Second",5000,"Finish the stage with one second left."],
+  ["Lucky Threes",3330,"Finish the stage with 3:33 left."],
+  ["Jackpot",1110,"End on a damage made of one repeated digit, like 44% or 111%."],
+  ["Full Power",2000,"End the match at 0% damage, even if you were hit earlier."]
+ ]],
+ ["Items", [
+  ["Item-less",1800,"Never use an item."],
+  ["Item Specialist",2000,"Hit only with items."],
+  ["Item Chucker",3000,"Attack only by throwing items."],
+  ["Item Smasher",3000,"Use only smash attacks with battering items."],
+  ["Capsule KO",800,"KO a foe with a Capsule.",1],
+  ["Carrier KO",800,"KO a foe with a container other than a Capsule.",1],
+  ["Weight Lifter",1500,"Carry heavy items often."],
+  ["Item Catcher",1000,"Catch a thrown item.",1],
+  ["Reciprocator",2000,"Catch an item a foe threw and throw it back.",1],
+  ["Item Self-Destruct",-1000,"Self-destruct because of an item."],
+  ["Triple Items",3000,"Use the same item 3 times or more in a row, like three Fire Flowers."],
+  ["Minimalist","1,500","Hold items for the least time of all players. On game versions 1.00 and 1.01 it's swapped with Materialist and gives 100."],
+  ["Materialist","100","Hold items for the most time of all players. On versions 1.00 and 1.01 it's swapped with Minimalist and gives 1,500."],
+  ["Item Hog",4000,"Use 10 kinds of items or more."],
+  ["Item Collector",4000,"Collect every item that appears."],
+  ["Connoisseur",3000,"Get every kind of food that appears."],
+  ["Gourmet",2000,"Use only food items (3 or more)."],
+  ["Battering Ram",1500,"Use only battering items (3 or more). Hammers count; picking up a container cancels it."],
+  ["Straight Shooter",1500,"Use only shooting items (3 or more)."],
+  ["Wimp",1500,"Use only recovery items (3 or more). Only Heart Containers and Chansey's eggs count as recovery items."],
+  ["Shape Shifter",1500,"Use only transformation items (3 or more)."],
+  ["Chuck Wagon",1500,"Use only throwing items (3 or more)."],
+  ["Parasol Finish",1600,"End the match floating with the Parasol. Peach's own parasol works."],
+  ["Gardener Finish",2000,"Have a flower on a foe's head when a timed match ends."],
+  ["Flower Finish",1700,"Have a flower on your own head when the match ends."],
+  ["Super Scoper",2000,"Deal 100% or more with Super Scopes. One scope alone is almost never enough."],
+  ["Screwed Up",2000,"Hold a Screw Attack for 30 seconds or more."],
+  ["Screw-Attack KO",2500,"KO a foe by throwing a Screw Attack item.",1],
+  ["Warp Star KO",1000,"KO a foe with a Warp Star.",1],
+  ["Mycologist",2500,"Get 3 Mushrooms or more."],
+  ["Mario Maniac",8000,"Use only Super Mushrooms, Fire Flowers and Starmen."],
+  ["Metal KO",800,"KO a foe while metal.",1],
+  ["Freezie KO",2000,"KO a foe with a Freezie.",1],
+  ["Flipper KO",2000,"KO a foe with a Flipper.",1],
+  ["Mr. Saturn Fan",3000,"Use no item but Mr. Saturn."],
+  ["Mrs. Saturn",1500,"Hold one Mr. Saturn for 30 seconds or more."],
+  ["Saturn Siblings",4000,"Get 3 different Mr. Saturns or more."],
+  ["Saturn Ringer",4000,"Catch a Mr. Saturn thrown at you."],
+  ["Giant KO",600,"KO a foe while giant.",1],
+  ["Tiny KO",2500,"KO a foe while tiny.",1],
+  ["Invisible KO",800,"KO a foe while invisible.",1],
+  ["Bunny-Hood Blast",1200,"KO a foe while wearing a Bunny Hood.",1],
+  ["Vegetarian",1800,"Eat 2 Maxim Tomatoes or more."],
+  ["Heartthrob",2800,"Get 2 Heart Containers or more."],
+  ["Invincible Finish",1200,"End the match while invincible."],
+  ["Invincible KO",800,"KO a foe while invincible.",1],
+  ["Beam Swordsman",800,"KO a foe with a Beam Sword.",1],
+  ["Home-Run King",600,"KO a foe with a Home-Run Bat.",1],
+  ["Laser Marksman",4000,"Hit with every shot from a Ray Gun."],
+  ["Flame Thrower",1600,"Land a 10-hit combo or more with a Fire Flower."],
+  ["Hammer Throw",1500,"Drop a Hammer: while holding one, get knocked into a tumble and press Z on the first frame you start falling. One of the hardest."],
+  ["Headless Hammer",2500,"Grab a Hammer and have its head fall off."],
+  ["Super Spy",800,"KO a foe with a Motion-Sensor Bomb.",1],
+  ["Bob-omb's Away",-500,"Get KO'd by a walking Bob-omb."],
+  ["Bob-omb Squad",2500,"Grab a Bob-omb just before it blows, right after it stops walking, without getting hurt.",1],
+  ["Pokémon KO",1000,"KO a foe with a Poké Ball Pokémon.",1],
+  ["Mew Catcher",10000,"Get Mew out of a thrown Poké Ball."],
+  ["Celebi Catcher",8000,"Get Celebi out of a thrown Poké Ball."]
+ ]],
+ ["Enemies", [
+  ["Goomba KO",100,"KO a Goomba. Stomping on it counts.",1],
+  ["Koopa KO",200,"KO a Koopa Troopa. Knocking it into its shell doesn't count; throw it, or swallow it as Yoshi or Kirby.",1],
+  ["Paratroopa KO",300,"KO a Koopa Paratroopa. Same rule as Koopas.",1],
+  ["ReDead KO",300,"KO a ReDead.",1],
+  ["Like-Like KO",500,"KO a Like Like.",1],
+  ["Octorok KO",150,"KO an Octorok.",1],
+  ["Topi KO",200,"KO a Topi.",1],
+  ["Polar Bear KO",800,"KO a Polar Bear.",1],
+  ["Shy Guy KO",20,"KO a Shy Guy on the Yoshi's Story stage.",1]
+ ]],
+ ["VS. results", [
+  ["First Place",1000,"Win a VS. match."],
+  ["Last Place",-1000,"Finish last in a timed VS. match."],
+  ["Wire to Wire",2000,"Lead in points for the whole match."],
+  ["Whipping Boy",-1500,"Trail in points for the whole match."],
+  ["KO Artist",3000,"Get twice the KOs of the runner-up (3 or more)."],
+  ["KO Master",1500,"Get the most KOs."],
+  ["Offensive Artist",2000,"Deal twice the damage of the runner-up (300 or more)."],
+  ["Offensive Master",1000,"Deal the most damage."],
+  ["Frequent Faller",-1000,"Fall twice as often as the next player (3 or more)."],
+  ["Fall Guy",-500,"Fall the most."],
+  ["Self-Destructor",-2000,"Self-destruct twice as often as the next player (3 or more)."],
+  ["Master of Disaster",-1000,"Self-destruct the most."],
+  ["KOs",500,"Given for every KO in VS. mode.",1],
+  ["Falls",-500,"Given for every fall in VS. mode.",1],
+  ["SDs",-500,"Given for every self-destruct in VS. mode.",1]
+ ]],
+ ["Single player", [
+  ["Target Master",30000,"Break every target in Target Test."],
+  ["Hobbyist",1000,"Grab a trophy before the stage ends. Trophies dropped by enemies don't count."],
+  ["Collector",30000,"Grab every trophy that appears in a stage."],
+  ["No-Damage Clear",300000,"Clear Classic, Adventure or All-Star without taking any damage."],
+  ["No-Miss Clear",10000,"Clear every stage without losing a life."],
+  ["Continuation",-20000,"Clear a mode by using a continue."],
+  ["Speedster",10000,"Clear every stage quickly. Not given with Speed Demon."],
+  ["Speed Demon",20000,"Clear every stage very quickly."],
+  ["Melee Master",100000,"Clear All-Star without using any Heart Containers."],
+  ["Classic Clear",50000,"Clear Classic mode."],
+  ["Adventure Clear",50000,"Clear Adventure mode."],
+  ["All-Star Clear",50000,"Clear All-Star mode."],
+  ["Very-Hard Clear",200000,"Clear a mode on Very Hard."],
+  ["Crazy Hand KO",80000,"Beat Crazy Hand in Classic mode."],
+  ["Luigi KO",20,"Beat Luigi in Adventure mode."],
+  ["Link Master",30000,"Beat all five Links in Adventure mode."],
+  ["Giant Kirby KO",10000,"Beat Giant Kirby in Adventure mode."],
+  ["Metal Bros. KO",8000,"Beat the Metal Bros. in Adventure mode."],
+  ["Giga Bowser KO",100000,"Beat Giga Bowser in Adventure mode."]
+ ]]
+];
+
+const ALL = [];
+GROUPS.forEach(([g, items]) => items.forEach(([name, pts, req, each]) => ALL.push({ g, name, pts, req, each: !!each })));
+const TOTAL = ALL.length;
+const LS = "melee-diskun-checklist";
+let got = new Set();
+let show = "all", cat = "all", query = "";
+
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => typeof n === "number" ? n.toLocaleString("en-US") : n;
+const CHECK = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5" fill="none" stroke="#06231a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+function readLocal() { try { return JSON.parse(localStorage.getItem(LS) || "[]"); } catch (e) { return []; } }
+function writeLocal() { try { localStorage.setItem(LS, JSON.stringify([...got])); } catch (e) {} }
+function known(list) { const names = new Set(ALL.map((b) => b.name)); return (Array.isArray(list) ? list : []).filter((n) => names.has(n)); }
+
+// ---------- drawing ----------
+function renderProgress() {
+  const n = got.size, done = n === TOTAL;
+  $("count").innerHTML = n + " <small>/ " + TOTAL + "</small>";
+  $("togo").textContent = done ? "Diskun trophy unlocked" : (TOTAL - n) + " to go";
+  $("fill").style.width = (n / TOTAL * 100) + "%";
+  $("meter").setAttribute("aria-valuenow", n);
+  $("app").classList.toggle("done", done);
+}
+function renderChips() {
+  const chips = [["all", "All", got.size, TOTAL]].concat(GROUPS.map(([g, items]) => [g, g, items.filter((b) => got.has(b[0])).length, items.length]));
+  $("chips").innerHTML = chips.map(([id, label, a, b]) =>
+    '<button type="button" class="chip' + (a === b ? " full" : "") + '" data-cat="' + id + '" aria-pressed="' + (cat === id) + '">' + label + " " + a + "/" + b + "</button>").join("");
+}
+function rowHtml(b) {
+  const on = got.has(b.name), neg = typeof b.pts === "number" && b.pts < 0;
+  return '<button type="button" class="b" data-n="' + encodeURIComponent(b.name) + '" aria-pressed="' + on + '">' +
+    '<span class="box">' + CHECK + '</span><span class="nm"></span>' +
+    '<span class="pts' + (neg ? " neg" : "") + '">' + fmt(b.pts) + (b.each ? " <em>each</em>" : "") + "</span>" +
+    '<span class="req"></span></button>';
+}
+function renderList() {
+  const q = query.trim().toLowerCase();
+  let html = "", shown = 0;
+  GROUPS.forEach(([g, items]) => {
+    if (cat !== "all" && cat !== g) return;
+    const rows = ALL.filter((b) => b.g === g).filter((b) =>
+      (show === "all" || (show === "got") === got.has(b.name)) &&
+      (!q || b.name.toLowerCase().includes(q) || b.req.toLowerCase().includes(q)));
+    if (!rows.length) return;
+    shown += rows.length;
+    const have = items.filter((b) => got.has(b[0])).length;
+    html += '<section class="group" data-g="' + g + '"><h2' + (have === items.length ? ' class="full"' : "") + ">" + g + " <small>" + have + " of " + items.length + "</small></h2>" +
+      '<div class="list">' + rows.map(rowHtml).join("") + "</div></section>";
+  });
+  const list = $("list");
+  list.innerHTML = html;
+  // names and descriptions as text, so nothing in them is read as markup
+  list.querySelectorAll(".b").forEach((el) => {
+    const b = ALL.find((x) => x.name === decodeURIComponent(el.dataset.n));
+    el.querySelector(".nm").textContent = b.name;
+    el.querySelector(".req").textContent = b.req;
+  });
+  $("empty").hidden = shown > 0;
+}
+function renderAll() { renderProgress(); renderChips(); renderList(); }
+
+// ---------- saving: your account when signed in, this browser otherwise ----------
+// dirty: ticks changed here that the account doesn't have yet (incoming copies wait until they're saved)
+let ref = null, saving = false, queued = false, dirty = false, saveTimer = null, loadTimer = null;
+function setSync(kind, text) { $("sync").className = "sync " + kind; $("syncText").textContent = text; }
+async function pushNow() {
+  if (!ref) return;
+  if (saving) { queued = true; return; }
+  saving = true; dirty = false;
+  try { await ref.set({ got: [...got], updated: Date.now() }); setSync("ok", "Saved to your account"); }
+  catch (e) { setSync("warn", e && e.code === "invalid_argument" ? "Can't save to your account here · saved in this browser" : "Couldn't reach your account · saved in this browser"); }
+  saving = false;
+  if (queued) { queued = false; pushNow(); }
+}
+function save() {
+  writeLocal();
+  if (!ref) return;
+  dirty = true;
+  setSync("", "Saving…");
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { saveTimer = null; pushNow(); }, 500);
+}
+async function connect() {
+  if (!window.claude || !window.claude.use) { setSync("", "Saved in this browser"); return; }
+  const [db, user] = await Promise.all([claude.use("db"), claude.use("user")]);
+  const id = user ? await user.id() : null;
+  if (!db || !id) { setSync("", "Saved in this browser · sign in to keep it on your account"); return; }
+  ref = db.doc("data/users/" + id + "/melee-bonuses");
+  setSync("", "Loading your progress…");
+  loadTimer = setTimeout(() => setSync("warn", "Your account can't be reached yet · showing this browser's copy"), 10000);
+  let first = true;
+  ref.onSnapshot((snap) => {
+    if (snap.metadata.fromCache && !snap.exists) return;
+    if (!snap.metadata.fromCache) clearTimeout(loadTimer);
+    if (snap.metadata.hasPendingWrites || saving || dirty) return;   // our own change is on its way; don't flip ticks back meanwhile
+    if (snap.exists) {
+      const remote = new Set(known(snap.data().got));
+      if (first) {
+        // first visit with an account copy: keep anything ticked only in this browser too
+        const before = remote.size;
+        got.forEach((n) => remote.add(n));
+        got = remote;
+        if (got.size !== before) pushNow();
+      } else got = remote;
+      writeLocal(); renderAll();
+    } else if (first && !snap.metadata.fromCache && got.size) pushNow();   // nothing on the account yet: bring this browser's ticks over
+    if (!snap.metadata.fromCache) { first = false; if (!saving) setSync("ok", "Saved to your account"); }
+  }, () => { clearTimeout(loadTimer); ref = null; setSync("warn", "Saved in this browser only"); });
+}
+
+// ---------- events ----------
+$("list").addEventListener("click", (e) => {
+  const el = e.target.closest(".b");
+  if (!el) return;
+  const name = decodeURIComponent(el.dataset.n);
+  if (got.has(name)) got.delete(name); else got.add(name);
+  el.setAttribute("aria-pressed", String(got.has(name)));
+  renderProgress(); renderChips();
+  // keep the row in place until the filter is touched again, so a tick in "Missing" doesn't jump the list
+  const sec = el.closest(".group"), g = GROUPS.find(([x]) => x === sec.dataset.g), h = sec.querySelector("h2 small");
+  if (g) { const have = g[1].filter((b) => got.has(b[0])).length; h.textContent = have + " of " + g[1].length; h.parentNode.classList.toggle("full", have === g[1].length); }
+  save();
+});
+document.querySelector(".seg").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-show]");
+  if (!b) return;
+  show = b.dataset.show;
+  document.querySelectorAll(".seg button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+  renderList();
+});
+$("chips").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-cat]");
+  if (!b) return;
+  cat = b.dataset.cat;
+  renderChips(); renderList();
+});
+$("q").addEventListener("input", (e) => { query = e.target.value; renderList(); });
+let armTimer = null;
+$("reset").addEventListener("click", (e) => {
+  const b = e.currentTarget;
+  if (!b.classList.contains("armed")) {
+    b.classList.add("armed"); b.textContent = "Click again to clear all " + got.size + " ticks";
+    clearTimeout(armTimer); armTimer = setTimeout(() => { b.classList.remove("armed"); b.textContent = "Clear all ticks"; }, 3500);
+    return;
+  }
+  clearTimeout(armTimer); b.classList.remove("armed"); b.textContent = "Clear all ticks";
+  got = new Set(); renderAll(); save();
+});
+
+// ---------- reading a Melee save from Dolphin ----------
+// Bonus number in the game's save for each bonus (one bit each, from the decompiled game, matched by points to the in-game Data menu order)
+const KIND = {"Bird of Prey":0,"Combo King":1,"Juggler":2,"Backstabber":3,"Sweeper":4,"Clean Sweep":5,"Meteor Smash":6,"Meteor Clear":7,"Meteor Master":8,"Meteor Survivor":10,"Flying Meteor":11,"Exceptional Aim":12,"Perfect Aim":13,"All Ground":14,"All Aerial":15,"All Variations":16,"All on One":17,"Lethal Weapon":18,"Berserker":19,"Smash King":20,"Smash Maniac":21,"Smash-less":22,"Specialist":23,"Dedicated Specialist":24,"One-Two Punch":25,"First Strike":26,"150% Damage":27,"200% Damage":28,"250% Damage":29,"300% Damage":30,"350% Damage":31,"Heavy Damage":32,"Sniper":33,"Brawler":34,"Precise Aim":35,"Pitcher":36,"Butterfingers":37,"All Thumbs":38,"Cuddly Bear":39,"Compass Tosser":40,"Throw Down":42,"Pummeler":43,"Fists of Fury":44,"Close Call":45,"Opportunist":46,"Spectator":47,"Statue":48,"Never Look Back":49,"Stiff Knees":50,"Run, Don't Walk":51,"Ambler":52,"No Hurry":53,"Marathon Man":54,"Eagle":55,"Aerialist":56,"Acrobat":57,"Cement Shoes":58,"Head Banger":59,"Elbow Room":60,"Power Shielder":61,"Shield Buster":62,"Shattered Shield":63,"Shield Stupidity":64,"Shield Saver":65,"Skid Master":66,"Rock Climber":67,"Edge Hog":70,"Cliff Hanger":71,"Life on the Edge":72,"Poser":73,"Poser Poseur":74,"Poser Power":75,"Pose Breaker":76,"Instant Poser":77,"Control Freak":249,"Button Masher":78,"Button Holder":79,"Rock Steady":80,"Pratfaller":81,"Face Planter":82,"Twinkle Toes":83,"Floor Diver":84,"No R 4 U":85,"Climactic Clash":86,"Floored":87,"Punching Bag":88,"Stale Moves":89,"Blind Eye":90,"Crowd Favorite":91,"Master of Suspense":92,"Lost in Space":93,"Lost Luggage":94,"Half-Minute Man":95,"Pacifist":96,"Peaceful Warrior":250,"Moment of Silence":97,"Impervious":98,"Immortal":99,"Switzerland":100,"Predator":101,"Down, But Not Out":251,"Solar Being":102,"Stalker":103,"Bully":104,"Coward":105,"In the Fray":106,"Friendly Foe":107,"Center Stage":108,"Merciful Master":252,"Star KO":109,"Rocket KO":253,"Wimpy KO":110,"Bull's-eye KO":111,"Poser KO":112,"Cheap KO":113,"Bank-Shot KO":114,"Timely KO":115,"Special KO":116,"Hangman's KO":117,"KO 64":118,"Bubble-Blast KO":119,"Sacrificial KO":120,"Avenger KO":121,"Double KO":122,"Triple KO":123,"Quadruple KO":124,"Quintuple KO":125,"Dead-Weight KO":126,"Kiss-the-Floor KO":127,"Assisted KO":128,"Foresight":129,"First to Fall":130,"Cliff Diver":131,"Quitter":132,"Shameful Fall":133,"World Traveler":134,"Ground Pounded":135,"Environmental Hazard":136,"Angelic":137,"Magnified Finish":138,"Fighter Stance":139,"Mystic":140,"Shooting Star":141,"Lucky Number Seven":142,"Last Second":143,"Lucky Threes":144,"Jackpot":145,"Full Power":146,"Item-less":147,"Item Specialist":148,"Item Chucker":149,"Item Smasher":150,"Capsule KO":151,"Carrier KO":152,"Weight Lifter":153,"Item Catcher":154,"Reciprocator":155,"Item Self-Destruct":156,"Triple Items":157,"Minimalist":255,"Materialist":254,"Item Hog":158,"Item Collector":159,"Connoisseur":160,"Gourmet":161,"Battering Ram":162,"Straight Shooter":163,"Wimp":164,"Shape Shifter":165,"Chuck Wagon":166,"Parasol Finish":167,"Gardener Finish":168,"Flower Finish":169,"Super Scoper":170,"Screwed Up":171,"Screw-Attack KO":172,"Warp Star KO":173,"Mycologist":174,"Mario Maniac":175,"Metal KO":176,"Freezie KO":177,"Flipper KO":178,"Mr. Saturn Fan":179,"Mrs. Saturn":180,"Saturn Siblings":181,"Saturn Ringer":182,"Giant KO":183,"Tiny KO":184,"Invisible KO":186,"Bunny-Hood Blast":187,"Vegetarian":188,"Heartthrob":189,"Invincible Finish":190,"Invincible KO":191,"Beam Swordsman":192,"Home-Run King":193,"Laser Marksman":194,"Flame Thrower":195,"Hammer Throw":196,"Headless Hammer":197,"Super Spy":198,"Bob-omb's Away":199,"Bob-omb Squad":200,"Pokémon KO":203,"Mew Catcher":204,"Celebi Catcher":205,"Goomba KO":206,"Koopa KO":207,"Paratroopa KO":208,"ReDead KO":209,"Like-Like KO":210,"Octorok KO":211,"Topi KO":212,"Polar Bear KO":213,"Shy Guy KO":214,"First Place":215,"Last Place":216,"Wire to Wire":217,"Whipping Boy":218,"KO Artist":219,"KO Master":220,"Offensive Artist":221,"Offensive Master":222,"Frequent Faller":223,"Fall Guy":224,"Self-Destructor":225,"Master of Disaster":226,"KOs":227,"Falls":228,"SDs":229,"Target Master":246,"Hobbyist":247,"Collector":248,"No-Damage Clear":230,"No-Miss Clear":231,"Continuation":232,"Speedster":233,"Speed Demon":234,"Melee Master":235,"Classic Clear":236,"Adventure Clear":237,"All-Star Clear":238,"Very-Hard Clear":239,"Crazy Hand KO":240,"Luigi KO":241,"Link Master":242,"Giant Kirby KO":243,"Metal Bros. KO":244,"Giga Bowser KO":245};
+
+const MeleeSave = (() => {
+  const SECTOR = 0x2000, FILE = "SuperSmashBros0110290334";
+  const BONUS_AT = 0x20 + 0x420;   // block header, then the bonus bitset inside the game's save data
+  // Melee scrambles each byte using the byte before it: a bit shuffle picked by prev % 7, then two XORs
+  const LUT = [0x26,0xFF,0xE8,0xEF,0x42,0xD6,0x01,0x54,0x14,0xA3,0x80,0xFD,0x6E];
+  // [rotate left, bit] pairs, bits numbered PowerPC-style (0 = top bit of 32)
+  const MOVES = [
+    [[1,29],[0,31],[2,27],[3,25],[29,30],[30,28],[31,26],[0,24]],
+    [[6,24],[1,30],[0,29],[29,31],[1,26],[31,27],[29,28],[31,25]],
+    [[2,28],[2,29],[4,25],[1,27],[3,24],[28,30],[26,31],[30,26]],
+    [[31,31],[4,27],[3,26],[30,30],[31,28],[1,25],[1,24],[27,29]],
+    [[4,26],[3,28],[31,30],[4,24],[2,25],[29,29],[30,27],[25,31]],
+    [[5,25],[5,26],[5,24],[0,28],[30,29],[27,31],[27,30],[29,27]],
+    [[0,30],[6,25],[30,31],[2,26],[0,27],[2,24],[28,29],[28,28]],
+  ];
+  const rotl = (x, n) => ((x << n) | (x >>> (32 - n))) >>> 0;
+  let DEC = null;
+  function table() {
+    if (DEC) return DEC;
+    DEC = new Uint8Array(65536);
+    for (let p = 0; p < 256; p++) {
+      const mv = MOVES[p % 7], key = LUT[p % 13];
+      for (let c = 0; c < 256; c++) {
+        let r = 0;
+        for (const [sh, bit] of mv) { const m = 1 << (31 - bit); r = (r & ~m) | (rotl(c, sh) & m); }
+        DEC[p << 8 | c] = (r ^ key ^ p) & 0xFF;
+      }
+    }
+    return DEC;
+  }
+  function decodeSector(buf, o) {
+    const d = table(), out = buf.slice(o, o + SECTOR);
+    let prev = buf[o + 15];
+    for (let i = 16; i < SECTOR; i++) { const c = buf[o + i]; out[i] = d[prev << 8 | c]; prev = c; }
+    return out;
+  }
+  function checksumOK(sec) {
+    const s = [0x01,0x23,0x45,0x67,0x89,0xAB,0xCD,0xEF,0xFE,0xDC,0xBA,0x98,0x76,0x54,0x32,0x10];
+    for (let i = 16; i < SECTOR; i++) s[i & 15] = (s[i & 15] + sec[i]) & 0xFF;
+    for (let i = 1; i < 15; i++) if (s[i - 1] === s[i]) s[i] ^= 0xFF;
+    return s.every((v, i) => v === sec[i]);
+  }
+  // the card keeps spare copies of blocks; a higher sequence number (wrapping at 255) is newer
+  function newer(a, b) {
+    if (a === 0 && b === 0xFF) return true;
+    if (a === 0xFF && b === 0) return false;
+    const d = a - b;
+    return d > 0x80 ? false : d < -0x80 ? true : d > 0;
+  }
+  const text = (u8, o, n) => { let s = ""; for (let i = 0; i < n && u8[o + i]; i++) s += String.fromCharCode(u8[o + i]); return s; };
+  const u16 = (u8, o) => u8[o] << 8 | u8[o + 1];
+  const isEntry = (u8, o) => o >= 0 && o + 0x40 <= u8.length && text(u8, o, 3) === "GAL" && text(u8, o + 8, 32) === FILE;
+
+  // a whole memory card image (.raw): find Melee's file in the directory and gather its blocks
+  function fromCard(u8) {
+    if (u8.length % SECTOR || u8.length < 8 * SECTOR) return null;
+    const ctr = (o) => (u16(u8, o) << 16) >> 16;
+    const dir = ctr(2 * SECTOR + 0x1FFA) > ctr(SECTOR + 0x1FFA) ? 2 * SECTOR : SECTOR;
+    const bat = ctr(4 * SECTOR + 4) > ctr(3 * SECTOR + 4) ? 4 * SECTOR : 3 * SECTOR;
+    const total = u8.length / SECTOR;
+    for (let e = 0; e < 127; e++) {
+      const o = dir + e * 0x40;
+      if (!isEntry(u8, o)) continue;
+      const count = u16(u8, o + 0x38);
+      let b = u16(u8, o + 0x36);
+      const out = new Uint8Array(0x40 + count * SECTOR);
+      out.set(u8.subarray(o, o + 0x40));
+      for (let i = 0; i < count; i++) {
+        if (b < 5 || b >= total) return null;
+        out.set(u8.subarray(b * SECTOR, (b + 1) * SECTOR), 0x40 + i * SECTOR);
+        b = u16(u8, bat + 0x0A + (b - 5) * 2);
+      }
+      return out;
+    }
+    return null;
+  }
+  // a .gci (directory entry + blocks), possibly behind another tool's header (.gcs/.sav)
+  function findFile(u8) {
+    if (isEntry(u8, 0)) return u8;
+    const card = fromCard(u8);
+    if (card) return card;
+    for (let i = 8; i + 24 <= u8.length; i++) {
+      if (u8[i] !== 0x53 || !isEntry(u8, i - 8)) continue;
+      const o = i - 8, need = 0x40 + u16(u8, o + 0x38) * SECTOR;
+      if (o + need <= u8.length) return u8.subarray(o, o + need);
+    }
+    return null;
+  }
+  function read(buffer) {
+    const u8 = new Uint8Array(buffer);
+    const file = findFile(u8);
+    if (!file) throw new Error("not-melee");
+    const sectors = Math.min(u16(file, 0x38), Math.floor((file.length - 0x40) / SECTOR));
+    let best = null, broken = 0;
+    for (let s = 1; s < sectors; s++) {       // sector 0 holds the banner and icons
+      const sec = decodeSector(file, 0x40 + s * SECTOR);
+      if (u16(sec, 0x10) !== 1) continue;      // block 1 holds the main save data
+      if (!checksumOK(sec)) { broken++; continue; }
+      if (!best || newer(sec[0x12], best[0x12])) best = sec;
+    }
+    if (!best) throw new Error(broken ? "damaged" : "no-data");
+    const has = (k) => (best[BONUS_AT + (k >> 5) * 4 + 3 - ((k & 31) >> 3)] >> (k & 7)) & 1;
+    const names = Object.keys(KIND).filter((n) => has(KIND[n]));
+    const t = (file[0x28] << 24 | file[0x29] << 16 | file[0x2A] << 8 | file[0x2B]) >>> 0;   // seconds since 2000
+    const when = t ? new Date(Date.UTC(2000, 0, 1) + t * 1000) : null;
+    return { names, when, region: text(file, 3, 1) };
+  }
+  return { read };
+})();
+
+let impStale = [];
+function impMessage(kind, text, untick) {
+  const m = $("impMsg");
+  m.hidden = false; m.className = "imp-msg " + kind; m.textContent = "";
+  const s = document.createElement("span"); s.textContent = text; m.appendChild(s);
+  if (untick) {
+    const b = document.createElement("button");
+    b.type = "button"; b.id = "untick";
+    b.textContent = "Untick the " + untick + " your save doesn't have";
+    m.appendChild(b);
+  }
+}
+async function importFiles(files) {
+  const found = new Set();
+  let read = 0, when = null, lastErr = "not-melee";
+  for (const f of files) {
+    try {
+      const r = MeleeSave.read(await f.arrayBuffer());
+      read++; r.names.forEach((n) => found.add(n));
+      if (r.when && (!when || r.when > when)) when = r.when;
+    } catch (e) { lastErr = (e && e.message) || "not-melee"; }
+  }
+  if (!read) {
+    impMessage("err", lastErr === "damaged" ? "That's a Melee save, but its data didn't check out. Try exporting it again from Dolphin's Memory Card Manager."
+      : lastErr === "no-data" ? "That's a Melee save, but its main data block is missing."
+      : "No Melee save in that file. Pick the SuperSmashBros .gci file, or your memory card .raw file.");
+    return;
+  }
+  const before = got.size;
+  found.forEach((n) => got.add(n));
+  const added = got.size - before;
+  impStale = [...got].filter((n) => !found.has(n));
+  const date = when ? " (saved " + when.toLocaleDateString(undefined, { timeZone: "UTC", year: "numeric", month: "short", day: "numeric" }) + ")" : "";
+  impMessage("ok", "Your save has " + found.size + " of " + TOTAL + " bonuses" + date + ". " +
+    (added ? "Ticked " + added + " new." : "Nothing new to tick."), impStale.length);
+  renderAll();
+  if (added) save();
+}
+$("load").addEventListener("click", () => $("file").click());
+$("file").addEventListener("change", (e) => { const fs = [...e.target.files]; e.target.value = ""; if (fs.length) importFiles(fs); });
+$("impMsg").addEventListener("click", (e) => {
+  if (!e.target.closest("#untick")) return;
+  const n = impStale.length;
+  impStale.forEach((x) => got.delete(x)); impStale = [];
+  impMessage("ok", "Unticked " + n + ". The list now matches your save.");
+  renderAll(); save();
+});
+let dragDepth = 0;
+window.addEventListener("dragenter", (e) => { if ([...(e.dataTransfer?.types || [])].includes("Files")) { e.preventDefault(); dragDepth++; $("imp").classList.add("over"); } });
+window.addEventListener("dragleave", () => { if (dragDepth && !--dragDepth) $("imp").classList.remove("over"); });
+window.addEventListener("dragover", (e) => { if ([...(e.dataTransfer?.types || [])].includes("Files")) e.preventDefault(); });
+window.addEventListener("drop", (e) => {
+  if (!e.dataTransfer?.files?.length) return;
+  e.preventDefault(); dragDepth = 0; $("imp").classList.remove("over");
+  importFiles([...e.dataTransfer.files]);
+});
+
+got = new Set(known(readLocal()));
+renderAll();
+connect();
+</script>
+</body>
+</html>
